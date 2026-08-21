@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Runvera"
+description = "A premium AI business intelligence workspace for founders to understand their business, model the future, and make better decisions."
+version = "1.0.0"
+id = "artifacts/runvera"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20884
+
+[services.development]
+run = "pnpm --filter @workspace/runvera run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/runvera", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/runvera/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20884"
+BASE_PATH = "/"
