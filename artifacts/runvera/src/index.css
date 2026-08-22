@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+@layer theme, base, clerk, components, utilities;
 @import 'tailwindcss';
+@import '@clerk/themes/shadcn.css';
 @import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
@@ -208,3 +210,45 @@ a { color: inherit; }
   .rv-grid-dashboard .rv-agency-card { grid-column: span 2; }
   .rv-grid-three { grid-template-columns: repeat(3, 1fr); }
 }
+
+.rv-auth-home {
+  min-height: 100dvh;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 28px 22px 26px;
+  background: linear-gradient(135deg, #f5f7ff 0%, #edf5f3 100%);
+}
+.rv-auth-home .rv-brand { position: relative; z-index: 1; }
+.rv-auth-glow {
+  position: absolute;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  right: -160px;
+  top: -120px;
+  background: hsl(239 61% 58% / .13);
+}
+.rv-auth-home-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 620px;
+  margin: auto 0;
+  padding: 70px 0;
+}
+.rv-auth-home-copy h1 {
+  font-size: clamp(42px, 10vw, 76px);
+  line-height: .98;
+  letter-spacing: -.07em;
+  margin: 14px 0 22px;
+}
+.rv-auth-home-copy h1 em { color: hsl(var(--primary)); font-style: normal; }
+.rv-auth-home-copy p { max-width: 520px; color: hsl(var(--muted-foreground)); font-size: 16px; line-height: 1.6; }
+.rv-auth-home-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.rv-auth-home-proof { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 16px; color: hsl(var(--muted-foreground)); font: 10px var(--app-font-mono); text-transform: uppercase; letter-spacing: .06em; }
+.rv-auth-home-proof span { display: flex; align-items: center; gap: 7px; }
+.rv-auth-page { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 20px; background: linear-gradient(135deg, #f5f7ff 0%, #edf5f3 100%); }
+@media (min-width: 720px) { .rv-auth-home { padding: 42px 8vw 34px; } }
+@media (max-width: 520px) { .rv-auth-home-proof { flex-direction: column; } }

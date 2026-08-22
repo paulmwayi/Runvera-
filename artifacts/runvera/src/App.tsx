@@ -1,6 +1,9 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
+import { ClerkProvider, Show, SignIn, SignUp, useClerk } from '@clerk/react';
+import { publishableKeyFromHost } from '@clerk/react/internal';
+import { shadcn } from '@clerk/themes';
+import { Link, Redirect, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import {
   ArrowLeft, ArrowRight, BriefcaseBusiness, Check, ChevronRight, CircleDollarSign,
   FileText, Landmark, LayoutGrid, LineChart, Minus, Plus, Settings as SettingsIcon,
@@ -12,6 +15,62 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 const queryClient = new QueryClient();
 const notify = (message: string) => window.dispatchEvent(new CustomEvent('rv-toast', { detail: message }));
+const clerkPubKey = publishableKeyFromHost(window.location.hostname, import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+function stripBase(path: string) {
+  return basePath && path.startsWith(basePath) ? path.slice(basePath.length) || '/' : path;
+}
+
+const clerkAppearance = {
+  theme: shadcn,
+  cssLayerName: 'clerk',
+  options: {
+    logoPlacement: 'inside' as const,
+    logoLinkUrl: basePath || '/',
+    logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
+  },
+  variables: {
+    colorPrimary: '#5550D9',
+    colorForeground: '#151A2D',
+    colorMutedForeground: '#657083',
+    colorDanger: '#C7465B',
+    colorBackground: '#FFFFFF',
+    colorInput: '#F7F8FC',
+    colorInputForeground: '#151A2D',
+    colorNeutral: '#DDE2EF',
+    fontFamily: 'Manrope, sans-serif',
+    borderRadius: '1rem',
+  },
+  elements: {
+    rootBox: 'w-full flex justify-center',
+    cardBox: 'bg-white rounded-2xl w-[440px] max-w-full overflow-hidden shadow-xl',
+    card: '!shadow-none !border-0 !bg-transparent !rounded-none',
+    footer: '!shadow-none !border-0 !bg-transparent !rounded-none',
+    headerTitle: 'text-[#151A2D] font-bold',
+    headerSubtitle: 'text-[#657083]',
+    socialButtonsBlockButtonText: 'text-[#151A2D]',
+    formFieldLabel: 'text-[#151A2D] font-semibold',
+    footerActionLink: 'text-[#5550D9] font-semibold',
+    footerActionText: 'text-[#657083]',
+    dividerText: 'text-[#657083]',
+    identityPreviewEditButton: 'text-[#5550D9]',
+    formFieldSuccessText: 'text-[#168A67]',
+    alertText: 'text-[#C7465B]',
+    logoBox: 'mb-3',
+    logoImage: 'max-h-10',
+    socialButtonsBlockButton: 'border-[#DDE2EF] bg-white',
+    formButtonPrimary: 'bg-[#5550D9] hover:bg-[#4843C4] text-white',
+    formFieldInput: 'bg-[#F7F8FC] border-[#DDE2EF] text-[#151A2D]',
+    footerAction: 'bg-transparent',
+    dividerLine: 'bg-[#DDE2EF]',
+    alert: 'bg-[#FFF4F5] border-[#F2C9D0]',
+    otpCodeFieldInput: 'border-[#DDE2EF] text-[#151A2D]',
+    formFieldRow: 'mb-4',
+    main: 'gap-5',
+  },
+};
 
 function Logo() {
   return <Link href="/" className="rv-brand"><span className="rv-mark" /><span className="rv-brand-name">run<span>vera</span></span></Link>;
@@ -27,7 +86,7 @@ function Header({ title, back = false, children }: { title: string; back?: boole
 }
 
 const bottomItems = [
-  { href: '/', label: 'Command', icon: LayoutGrid },
+  { href: '/command', label: 'Command', icon: LayoutGrid },
   { href: '/forecasts', label: 'Forecasts', icon: LineChart },
   { href: '/funding', label: 'Funding', icon: CircleDollarSign },
   { href: '/agency', label: 'Agency', icon: Users },
@@ -35,7 +94,7 @@ const bottomItems = [
 
 function BottomNav() {
   const [location] = useLocation();
-  const active = location.startsWith('/agency') ? '/agency' : location.startsWith('/funding') || location === '/dilution' ? '/funding' : location.startsWith('/forecasts') || location === '/cash-flow' ? '/forecasts' : '/';
+  const active = location.startsWith('/agency') ? '/agency' : location.startsWith('/funding') || location === '/dilution' ? '/funding' : location.startsWith('/forecasts') || location === '/cash-flow' ? '/forecasts' : '/command';
   return <nav className="rv-bottom">{bottomItems.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={active === href ? 'active' : ''}><Icon /><span>{label}</span></Link>)}</nav>;
 }
 
@@ -193,12 +252,38 @@ function Projects({ compact = false }: { compact?: boolean }) {
 function Settings() {
   const [updates, setUpdates] = useState(true);
   const [sync, setSync] = useState(true);
-  return <><Header title="Settings" back /><div className="rv-content"><div className="rv-page-head"><div className="rv-eyebrow">Workspace</div><h1>Make it yours.</h1><p>Quiet controls for the way Runvera works with you.</p></div><Card><SectionTitle title="Workspace profile" /><label className="rv-label" htmlFor="workspace">Workspace name</label><input className="rv-input" id="workspace" defaultValue="Northstar Studio" /><div style={{ height: 12 }} /><label className="rv-label" htmlFor="owner">Your name</label><input className="rv-input" id="owner" defaultValue="Alex Morgan" /><button className="rv-button" style={{ width: '100%', marginTop: 14 }} onClick={() => notify('Workspace profile saved')}><Check size={14} /> Save changes</button></Card><div style={{ height: 14 }} /><Card><SectionTitle title="Preferences" /><div className="rv-setting"><div><strong>Decision alerts</strong><small>Get notified when a model signal changes</small></div><button className={`rv-switch ${updates ? 'on' : ''}`} onClick={() => setUpdates(!updates)} aria-label="Toggle decision alerts"><span /></button></div><div className="rv-setting"><div><strong>Live model sync</strong><small>Keep specialists aligned with your assumptions</small></div><button className={`rv-switch ${sync ? 'on' : ''}`} onClick={() => setSync(!sync)} aria-label="Toggle live model sync"><span /></button></div><div className="rv-setting"><div><strong>Default forecast</strong><small>12-month trajectory</small></div><ChevronRight size={16} color="hsl(var(--muted-foreground))" /></div></Card><div style={{ height: 14 }} /><Card><SectionTitle title="Account" /><div className="rv-setting"><div><strong>Alex Morgan</strong><small>Founder · Northstar Studio</small></div><span className="rv-pill green">Active</span></div><button className="rv-button secondary" style={{ width: '100%' }} onClick={() => notify('Sign out is disabled in demo mode')}>Sign out</button></Card></div></>;
+  const { signOut } = useClerk();
+  return <><Header title="Settings" back /><div className="rv-content"><div className="rv-page-head"><div className="rv-eyebrow">Workspace</div><h1>Make it yours.</h1><p>Quiet controls for the way Runvera works with you.</p></div><Card><SectionTitle title="Workspace profile" /><label className="rv-label" htmlFor="workspace">Workspace name</label><input className="rv-input" id="workspace" defaultValue="Northstar Studio" /><div style={{ height: 12 }} /><label className="rv-label" htmlFor="owner">Your name</label><input className="rv-input" id="owner" defaultValue="Alex Morgan" /><button className="rv-button" style={{ width: '100%', marginTop: 14 }} onClick={() => notify('Workspace profile saved')}><Check size={14} /> Save changes</button></Card><div style={{ height: 14 }} /><Card><SectionTitle title="Preferences" /><div className="rv-setting"><div><strong>Decision alerts</strong><small>Get notified when a model signal changes</small></div><button className={`rv-switch ${updates ? 'on' : ''}`} onClick={() => setUpdates(!updates)} aria-label="Toggle decision alerts"><span /></button></div><div className="rv-setting"><div><strong>Live model sync</strong><small>Keep specialists aligned with your assumptions</small></div><button className={`rv-switch ${sync ? 'on' : ''}`} onClick={() => setSync(!sync)} aria-label="Toggle live model sync"><span /></button></div><div className="rv-setting"><div><strong>Default forecast</strong><small>12-month trajectory</small></div><ChevronRight size={16} color="hsl(var(--muted-foreground))" /></div></Card><div style={{ height: 14 }} /><Card><SectionTitle title="Account" /><div className="rv-setting"><div><strong>Alex Morgan</strong><small>Founder · Northstar Studio</small></div><span className="rv-pill green">Active</span></div><button className="rv-button secondary" style={{ width: '100%' }} onClick={() => signOut({ redirectUrl: basePath || '/' })}>Sign out</button></Card></div></>;
+}
+
+function PublicHome() {
+  return <main className="rv-auth-home">
+    <div className="rv-auth-glow" />
+    <Logo />
+    <div className="rv-auth-home-copy">
+      <div className="rv-eyebrow">AI business intelligence for founders</div>
+      <h1>Understand your business.<br /><em>Model the future.</em></h1>
+      <p>Runvera turns complex business numbers into clear decisions, with a virtual team of finance, strategy, marketing, sales, product and operations specialists beside you.</p>
+      <div className="rv-auth-home-actions">
+        <Link href="/sign-up" className="rv-button">Create your workspace <ArrowRight size={15} /></Link>
+        <Link href="/sign-in" className="rv-button secondary">Sign in</Link>
+      </div>
+    </div>
+    <div className="rv-auth-home-proof"><span><span className="rv-dot" /> Live business intelligence</span><span>Financial model · AI agency · funding plans</span></div>
+  </main>;
+}
+
+function SignInPage() {
+  return <div className="rv-auth-page"><SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} /></div>;
+}
+
+function SignUpPage() {
+  return <div className="rv-auth-page"><SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} /></div>;
 }
 
 function AppRoutes() {
   return <Switch>
-    <Route path="/"><Dashboard /></Route>
+    <Route path="/command"><Dashboard /></Route>
     <Route path="/model"><Model /></Route>
     <Route path="/forecasts"><Forecasts /></Route>
     <Route path="/cash-flow"><CashFlow /></Route>
@@ -211,12 +296,41 @@ function AppRoutes() {
     <Route path="/reports/financial"><FinancialReport /></Route>
     <Route path="/projects"><Projects /></Route>
     <Route path="/settings"><Settings /></Route>
-    <Route><Dashboard /></Route>
+    <Route><Redirect to="/command" /></Route>
   </Switch>;
 }
 
+function HomeRedirect() {
+  return <><Show when="signed-in"><Redirect to="/command" /></Show><Show when="signed-out"><PublicHome /></Show></>;
+}
+
+function ProtectedRoutes() {
+  return <><Show when="signed-in"><Shell><AppRoutes /></Shell></Show><Show when="signed-out"><Redirect to="/" /></Show></>;
+}
+
+function AuthRouter() {
+  const [, setLocation] = useLocation();
+  return <ClerkProvider
+    publishableKey={clerkPubKey}
+    proxyUrl={clerkProxyUrl}
+    appearance={clerkAppearance}
+    signInUrl={`${basePath}/sign-in`}
+    signUpUrl={`${basePath}/sign-up`}
+    localization={{ signIn: { start: { title: 'Welcome back', subtitle: 'Your business command center is waiting.' } }, signUp: { start: { title: 'Create your Runvera workspace', subtitle: 'Turn your numbers into your next decision.' } } }}
+    routerPush={(to) => setLocation(stripBase(to))}
+    routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+  >
+    <Switch>
+      <Route path="/" component={HomeRedirect} />
+      <Route path="/sign-in/*?" component={SignInPage} />
+      <Route path="/sign-up/*?" component={SignUpPage} />
+      <Route component={ProtectedRoutes} />
+    </Switch>
+  </ClerkProvider>;
+}
+
 function App() {
-  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter><ErrorBoundary><Shell><AppRoutes /></Shell></ErrorBoundary></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={basePath}><ErrorBoundary><AuthRouter /></ErrorBoundary></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
 }
 
 export default App;
