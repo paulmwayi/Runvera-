@@ -47,3 +47,19 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Replit
+.replit
+.replitignore
+replit.md
+
+# Deployment
+.vercel
+.netlify
