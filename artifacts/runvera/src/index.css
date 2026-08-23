@@ -1,12 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
-@layer theme, base, clerk, components, utilities;
-@import 'tailwindcss';
 @import '@clerk/themes/shadcn.css';
 @import 'tw-animate-css';
 
-@custom-variant dark (&:is(.dark *));
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme inline {
+
+
+:root {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-border: hsl(var(--border));
@@ -25,6 +27,7 @@
   --font-sans: var(--app-font-sans);
   --font-mono: var(--app-font-mono);
 }
+
 
 :root {
   --background: 220 28% 96%;
