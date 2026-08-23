@@ -4,11 +4,8 @@
   "installCommand": "pnpm install --no-frozen-lockfile",
   "buildCommand": "pnpm --filter @workspace/runvera run build",
   "outputDirectory": "artifacts/runvera/dist/public",
+  "framework": null,
   "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api"
-    },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
