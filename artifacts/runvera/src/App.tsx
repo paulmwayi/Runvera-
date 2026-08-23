@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ClerkProvider, Show, SignIn, SignUp, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
@@ -14,6 +14,85 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 const queryClient = new QueryClient();
+
+type BusinessState = {
+  revenue: number;
+  expenses: number;
+  cash: number;
+  growth: number;
+  customers: number;
+  assets: number;
+  liabilities: number;
+  seats: number;
+};
+
+const DEFAULT_BUSINESS: BusinessState = {
+  revenue: 0,
+  expenses: 0,
+  cash: 0,
+  growth: 0,
+  customers: 0,
+  assets: 0,
+  liabilities: 0,
+  seats: 0,
+};
+
+const BUSINESS_STORAGE_KEY = 'runvera-business-state';
+
+const BusinessContext = createContext<{
+  business: BusinessState;
+  updateBusiness: (updates: Partial<BusinessState>) => void;
+  resetBusiness: () => void;
+}>({
+  business: DEFAULT_BUSINESS,
+  updateBusiness: () => undefined,
+  resetBusiness: () => undefined,
+});
+
+function BusinessProvider({ children }: { children: ReactNode }) {
+  const [business, setBusiness] = useState<BusinessState>(() => {
+    try {
+      const saved = localStorage.getItem(BUSINESS_STORAGE_KEY);
+      if (!saved) return DEFAULT_BUSINESS;
+
+      const parsed = JSON.parse(saved) as Partial<BusinessState>;
+
+      return {
+        ...DEFAULT_BUSINESS,
+        ...parsed,
+      };
+    } catch {
+      return DEFAULT_BUSINESS;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(BUSINESS_STORAGE_KEY, JSON.stringify(business));
+  }, [business]);
+
+  const updateBusiness = (updates: Partial<BusinessState>) => {
+    setBusiness((current) => ({
+      ...current,
+      ...updates,
+    }));
+  };
+
+  const resetBusiness = () => {
+    setBusiness(DEFAULT_BUSINESS);
+  };
+
+  return (
+    <BusinessContext.Provider value={{ business, updateBusiness, resetBusiness }}>
+      {children}
+    </BusinessContext.Provider>
+  );
+}
+
+function useBusiness() {
+  return useContext(BusinessContext);
+}
+
+
 const notify = (message: string) => window.dispatchEvent(new CustomEvent('rv-toast', { detail: message }));
 const clerkPubKey = publishableKeyFromHost(window.location.hostname, import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
@@ -126,86 +205,1217 @@ function Chart({ detailed = false }: { detailed?: boolean }) {
     <polyline points={`${points} 330,165 0,165`} fill="url(#revFill)" stroke="none" />
     <polyline points={points} fill="none" stroke="hsl(158 65% 48%)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
     <polyline points={exp} fill="none" stroke="hsl(351 65% 54%)" strokeWidth="2" strokeDasharray="4 4" />
-    {['$40k', '$30k', '$20k', '$10k', '$0k'].map((label, i) => <text key={label} x="2" y={28 + i * 34} fontSize="9" fill="hsl(225 9% 45%)">{label}</text>)}
+    {['$0', '$0', '$0', '$0', '$0'].map((label, i) => <text key={label} x="2" y={28 + i * 34} fontSize="9" fill="hsl(225 9% 45%)">{label}</text>)}
   </svg>;
 }
 
-function Metrics() {
-  return <div className="rv-grid rv-grid-2">
-    <div className="rv-card rv-metric"><TrendingUp className="rv-metric-icon" size={18} /><label>Monthly Revenue</label><strong>$18,500</strong><small>↗ +7.0% MoM</small></div>
-    <div className="rv-card rv-metric"><WalletCards className="rv-metric-icon" size={18} /><label>Total Expenses</label><strong>$24,120</strong><small>3 Team Seats</small></div>
-    <div className="rv-card rv-metric"><span className="rv-metric-icon">%</span><label>Gross Margin</label><strong>88%</strong><small>↗ $49 / customer ARPU</small></div>
-    <div className="rv-card rv-metric"><Users className="rv-metric-icon" size={18} /><label>Active Customers</label><strong>378</strong><small className="negative">↘ 508 for break-even</small></div>
-  </div>;
+
+
+function Slider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  display,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  display: string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="rv-control" style={{ marginBottom: 18 }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+      }}>
+        <label>{label}</label>
+        <strong style={{
+          fontSize: 13,
+          color: 'hsl(var(--primary))',
+        }}>
+          {display}
+        </strong>
+      </div>
+
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        style={{ width: '100%' }}
+      />
+    </div>
+  );
 }
 
 function Dashboard() {
-  return <><Header title="Command Center" /><div className="rv-content">
-    <div className="rv-card rv-runway"><div className="rv-eyebrow">Business runway</div><strong>24.0</strong><span className="unit">Months</span><button className="rv-button ghost" style={{ float: 'right' }} onClick={() => notify('Model levers are ready')}><SlidersHorizontal size={14} /> Tune</button><div className="rv-runway-meta"><div><span>Cash Reserve</span><b>$135,000</b></div><div><span>Net Monthly Flow</span><b style={{ color: 'hsl(var(--destructive))' }}>-$5,620/mo</b></div><div><span>Break-Even Goal</span><b>$24,886/mo</b></div></div></div>
-    <div style={{ height: 14 }} />
-    <Metrics />
-    <div style={{ height: 14 }} />
-    <Card className="rv-chart-card"><SectionTitle title="12-Month Trajectory" description="Deterministic forecast based on active growth rate" action={<div className="rv-legend"><span><i className="rv-dot" />Rev</span><span><i className="rv-dot red" />Exp</span></div>} /><Chart /></Card>
-    <div style={{ height: 14 }} />
-    <Card className="rv-alert-card"><div className="rv-eyebrow">Decisions & alerts</div><div className="rv-alert" style={{ paddingInline: 0 }}><span className="tag">Runway priority</span><h3>Net burn at $5,620/month</h3><p>You are currently burning cash. Adding 130 customers or adjusting non-core spend by $5,620/mo reaches immediate break-even.</p><button className="rv-link" onClick={() => notify('Opening cost and pricing scenarios')}>Explore Cost & Price Scenarios <ArrowRight size={14} /></button></div></Card>
-    <div style={{ height: 14 }} />
-    <Card className="rv-agency-card"><SectionTitle title="AI Specialist Agency" description="Live perspectives from your operating model" action={<span className="rv-pill">6 Active</span>} /><div className="rv-specialists"><Link href="/agency/finance" className="rv-card rv-specialist"><div className="rv-agent-icon"><WalletCards size={16} /></div><h3>Finance</h3><p>Runway, burn analysis & break-even forecasting</p></Link><Link href="/agency/strategy" className="rv-card rv-specialist"><div className="rv-agent-icon purple"><Target size={16} /></div><h3>Strategy</h3><p>Competitive positioning & resource allocation</p></Link><div className="rv-card rv-specialist"><div className="rv-agent-icon pink"><Sparkles size={16} /></div><h3>Marketing</h3><p>Acquisition payback & channel economics</p></div></div></Card>
-  </div></>;
+  const { business } = useBusiness();
+
+  const { revenue, expenses, cash, customers, growth, seats } = business;
+
+  const netFlow = revenue - expenses;
+
+  const grossMargin =
+    revenue > 0
+      ? Math.max(0, ((revenue - expenses) / revenue) * 100)
+      : 0;
+
+  const breakEvenGap = Math.max(0, expenses - revenue);
+
+  const runway =
+    expenses > revenue && expenses > 0
+      ? cash / (expenses - revenue)
+      : cash > 0
+        ? Infinity
+        : 0;
+
+  const money = (value: number) =>
+    `$${Math.round(value).toLocaleString()}`;
+
+  return <>
+    <Header title="Command Center" />
+
+    <div className="rv-content">
+
+      <div className="rv-card rv-runway">
+        <div className="rv-eyebrow">Business runway</div>
+
+        <strong>
+          {Number.isFinite(runway) ? runway.toFixed(1) : '∞'}
+        </strong>
+
+        <span className="unit">Months</span>
+
+        <Link
+          href="/model"
+          className="rv-button ghost"
+          style={{ float: 'right', textDecoration: 'none' }}
+        >
+          <SlidersHorizontal size={14} />
+          Tune
+        </Link>
+
+        <div className="rv-runway-meta">
+
+          <div>
+            <span>Cash Reserve</span>
+            <b>{money(cash)}</b>
+          </div>
+
+          <div>
+            <span>Net Monthly Flow</span>
+            <b style={{
+              color: netFlow < 0
+                ? 'hsl(var(--destructive))'
+                : 'hsl(var(--accent))'
+            }}>
+              {netFlow < 0 ? '-' : '+'}
+              {money(Math.abs(netFlow))}/mo
+            </b>
+          </div>
+
+          <div>
+            <span>Break-Even Goal</span>
+            <b>{money(expenses)}/mo</b>
+          </div>
+
+        </div>
+      </div>
+
+      <div style={{ height: 14 }} />
+
+      <div className="rv-grid rv-grid-2">
+
+        <div className="rv-card rv-metric">
+          <TrendingUp className="rv-metric-icon" size={18} />
+          <label>Monthly Revenue</label>
+          <strong>{money(revenue)}</strong>
+          <small>
+            {growth > 0
+              ? `↗ ${growth.toFixed(1)}% MoM`
+              : 'No growth entered'}
+          </small>
+        </div>
+
+        <div className="rv-card rv-metric">
+          <WalletCards className="rv-metric-icon" size={18} />
+          <label>Total Expenses</label>
+          <strong>{money(expenses)}</strong>
+          <small>{seats} Team Seats</small>
+        </div>
+
+        <div className="rv-card rv-metric">
+          <span className="rv-metric-icon">%</span>
+          <label>Gross Margin</label>
+          <strong>{grossMargin.toFixed(1)}%</strong>
+          <small>
+            {revenue > 0
+              ? 'Based on current model'
+              : 'Enter revenue to calculate'}
+          </small>
+        </div>
+
+        <div className="rv-card rv-metric">
+          <Users className="rv-metric-icon" size={18} />
+          <label>Active Customers</label>
+          <strong>{customers.toLocaleString()}</strong>
+
+          <small className={breakEvenGap > 0 ? 'negative' : ''}>
+            {breakEvenGap > 0
+              ? `${money(breakEvenGap)} revenue gap`
+              : 'Break-even reached'}
+          </small>
+        </div>
+
+      </div>
+
+      <div style={{ height: 14 }} />
+
+      <Card className="rv-chart-card">
+        <SectionTitle
+          title="12-Month Trajectory"
+          description={
+            revenue > 0
+              ? "Forecast based on active growth rate"
+              : "Enter your business numbers to activate the forecast"
+          }
+          action={
+            <div className="rv-legend">
+              <span><i className="rv-dot" />Rev</span>
+              <span><i className="rv-dot red" />Exp</span>
+            </div>
+          }
+        />
+
+        <Chart detailed />
+      </Card>
+
+      <div style={{ height: 14 }} />
+
+      <Card className="rv-alert-card">
+        <div className="rv-eyebrow">Decisions & alerts</div>
+
+        <div className="rv-alert" style={{ paddingInline: 0 }}>
+
+          {revenue === 0 && expenses === 0 && cash === 0 ? (
+            <>
+              <span className="tag">Setup required</span>
+
+              <h3>Your business model is ready.</h3>
+
+              <p>
+                Enter your revenue, expenses, cash and operating assumptions
+                to activate Runvera's business intelligence.
+              </p>
+
+              <Link
+                href="/model"
+                className="rv-link"
+                style={{ textDecoration: 'none' }}
+              >
+                Set Up Business Model <ArrowRight size={14} />
+              </Link>
+            </>
+          ) : netFlow < 0 ? (
+            <>
+              <span className="tag">Runway priority</span>
+
+              <h3>Business is currently burning cash.</h3>
+
+              <p>
+                Your current monthly expenses exceed revenue by{' '}
+                {money(breakEvenGap)}.
+              </p>
+
+              <Link
+                href="/model"
+                className="rv-link"
+                style={{ textDecoration: 'none' }}
+              >
+                Explore Cost & Price Scenarios <ArrowRight size={14} />
+              </Link>
+            </>
+          ) : (
+            <>
+              <span className="tag">Business health</span>
+
+              <h3>Positive monthly cash flow.</h3>
+
+              <p>
+                Revenue currently exceeds operating expenses by{' '}
+                {money(netFlow)} per month.
+              </p>
+            </>
+          )}
+
+        </div>
+      </Card>
+
+      <div style={{ height: 14 }} />
+
+      <Card className="rv-agency-card">
+        <SectionTitle
+          title="AI Specialist Agency"
+          description="Live perspectives from your operating model"
+          action={<span className="rv-pill">6 Active</span>}
+        />
+
+        <div className="rv-specialists">
+
+          <Link
+            href="/agency/finance"
+            className="rv-card rv-specialist"
+            style={{ textDecoration: 'none' }}
+          >
+            <div className="rv-agent-icon">
+              <WalletCards size={16} />
+            </div>
+            <h3>Finance</h3>
+            <p>Runway, burn analysis & break-even forecasting</p>
+          </Link>
+
+          <Link
+            href="/agency/strategy"
+            className="rv-card rv-specialist"
+            style={{ textDecoration: 'none' }}
+          >
+            <div className="rv-agent-icon purple">
+              <Target size={16} />
+            </div>
+            <h3>Strategy</h3>
+            <p>Competitive positioning & resource allocation</p>
+          </Link>
+
+        </div>
+      </Card>
+
+    </div>
+  </>;
 }
 
-function Slider({ label, value, min, max, step, display, onChange }: { label: string; value: number; min: number; max: number; step: number; display: string; onChange: (value: number) => void }) {
-  return <div className="rv-control-block"><div className="rv-control"><label>{label}</label><output>{display}</output></div><input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} /></div>;
-}
 
 function Model() {
-  const [revenue, setRevenue] = useState(18500);
-  const [growth, setGrowth] = useState(7);
-  const [expenses, setExpenses] = useState(7500);
-  const [cash, setCash] = useState(135000);
-  const [seats, setSeats] = useState(3);
-  return <><Header title="Adjust Model" back /><div className="rv-content"><div className="rv-page-head"><div className="rv-eyebrow">Active assumptions</div><h1>Shape the model.</h1><p>Small changes here flow through every forecast and specialist brief.</p></div>
-    <h2 style={{ fontSize: 17, margin: '20px 0 10px' }}>Revenue & Growth</h2><Card><Slider label="Monthly Revenue" value={revenue} min={5000} max={100000} step={500} display={`$${revenue.toLocaleString()}`} onChange={setRevenue} /><Slider label="Monthly Growth Rate" value={growth} min={0} max={20} step={.5} display={`${growth.toFixed(1)}%`} onChange={setGrowth} /></Card>
-    <h2 style={{ fontSize: 17, margin: '20px 0 10px' }}>Costs & Headcount</h2><Card><Slider label="Fixed Monthly Expenses" value={expenses} min={2000} max={50000} step={500} display={`$${expenses.toLocaleString()}`} onChange={setExpenses} /><div className="rv-control"><label>Team Headcount: {seats}</label><div className="rv-stepper"><button onClick={() => setSeats(Math.max(1, seats - 1))}><Minus size={14} /></button><span>{seats}</span><button onClick={() => setSeats(seats + 1)}><Plus size={14} /></button></div></div></Card>
-    <h2 style={{ fontSize: 17, margin: '20px 0 10px' }}>Cash Reserve</h2><Card><Slider label="Cash in Bank" value={cash} min={10000} max={500000} step={5000} display={`$${cash.toLocaleString()}`} onChange={setCash} /></Card>
-    <button className="rv-button" style={{ width: '100%', marginTop: 20 }} onClick={() => notify('Model saved — forecasts updated')}><Check size={15} /> Done</button>
-  </div></>;
+  const { business, updateBusiness, resetBusiness } = useBusiness();
+
+  const [revenue, setRevenue] = useState(business.revenue);
+  const [growth, setGrowth] = useState(business.growth);
+  const [expenses, setExpenses] = useState(business.expenses);
+  const [cash, setCash] = useState(business.cash);
+  const [seats, setSeats] = useState(business.seats);
+  const [customers, setCustomers] = useState(business.customers);
+
+  const saveModel = () => {
+    updateBusiness({
+      revenue,
+      growth,
+      expenses,
+      cash,
+      seats,
+      customers,
+    });
+
+    notify('Model saved — forecasts updated');
+  };
+
+  const reset = () => {
+    resetBusiness();
+
+    setRevenue(0);
+    setGrowth(0);
+    setExpenses(0);
+    setCash(0);
+    setSeats(0);
+    setCustomers(0);
+
+    notify('Business model reset');
+  };
+
+  return <>
+    <Header title="Adjust Model" back />
+
+    <div className="rv-content">
+
+      <div className="rv-page-head">
+        <div className="rv-eyebrow">Active assumptions</div>
+
+        <h1>Shape the model.</h1>
+
+        <p>
+          Enter your real business numbers. Runvera will use them across
+          your dashboard, forecasts and financial intelligence.
+        </p>
+      </div>
+
+      <h2 style={{ fontSize: 17, margin: '20px 0 10px' }}>
+        Revenue & Growth
+      </h2>
+
+      <Card>
+        <Slider
+          label="Monthly Revenue"
+          value={revenue}
+          min={0}
+          max={100000}
+          step={500}
+          display={`$${revenue.toLocaleString()}`}
+          onChange={setRevenue}
+        />
+
+        <Slider
+          label="Monthly Growth Rate"
+          value={growth}
+          min={0}
+          max={50}
+          step={0.5}
+          display={`${growth.toFixed(1)}%`}
+          onChange={setGrowth}
+        />
+
+        <Slider
+          label="Active Customers"
+          value={customers}
+          min={0}
+          max={10000}
+          step={1}
+          display={customers.toLocaleString()}
+          onChange={setCustomers}
+        />
+      </Card>
+
+      <h2 style={{ fontSize: 17, margin: '20px 0 10px' }}>
+        Costs & Headcount
+      </h2>
+
+      <Card>
+
+        <Slider
+          label="Fixed Monthly Expenses"
+          value={expenses}
+          min={0}
+          max={50000}
+          step={500}
+          display={`$${expenses.toLocaleString()}`}
+          onChange={setExpenses}
+        />
+
+        <div className="rv-control">
+          <label>Team Headcount: {seats}</label>
+
+          <div className="rv-stepper">
+
+            <button onClick={() => setSeats(Math.max(0, seats - 1))}>
+              <Minus size={14} />
+            </button>
+
+            <span>{seats}</span>
+
+            <button onClick={() => setSeats(seats + 1)}>
+              <Plus size={14} />
+            </button>
+
+          </div>
+        </div>
+
+      </Card>
+
+      <h2 style={{ fontSize: 17, margin: '20px 0 10px' }}>
+        Cash Reserve
+      </h2>
+
+      <Card>
+
+        <Slider
+          label="Cash in Bank"
+          value={cash}
+          min={0}
+          max={500000}
+          step={5000}
+          display={`$${cash.toLocaleString()}`}
+          onChange={setCash}
+        />
+
+      </Card>
+
+      <button
+        className="rv-button"
+        style={{ width: '100%', marginTop: 20 }}
+        onClick={saveModel}
+      >
+        <Check size={15} />
+        Save Model
+      </button>
+
+      <button
+        className="rv-button secondary"
+        style={{ width: '100%', marginTop: 10 }}
+        onClick={reset}
+      >
+        Reset Business Data
+      </button>
+
+    </div>
+  </>;
 }
+
 
 function Forecasts() {
+  const { business } = useBusiness();
+
   const [months, setMonths] = useState('12 Months');
   const [metric, setMetric] = useState('Rev vs Exp');
-  return <><Header title="Forecast Studio" /><div className="rv-content"><div className="rv-tabs" style={{ width: '100%', justifyContent: 'space-between' }}>{['6 Months', '12 Months', '24 Months'].map((item) => <button key={item} className={`rv-tab ${months === item ? 'active' : ''}`} onClick={() => setMonths(item)}>{item}</button>)}</div><div style={{ height: 10 }} /><div className="rv-segment">{['Rev vs Exp', 'Cash Reserve', 'Net Cash Flow', 'Customers'].map((item) => <button key={item} className={metric === item ? 'active' : ''} onClick={() => setMetric(item)}>{item}</button>)}</div><div style={{ height: 14 }} /><Card><SectionTitle title={metric} description={`Forecast based on current model parameters`} action={<div style={{ textAlign: 'right' }}><span style={{ fontSize: 10, color: 'hsl(var(--muted-foreground))' }}>Month 12 Goal</span><b style={{ display: 'block', color: 'hsl(var(--accent))' }}>$38,940/mo</b></div>} /><Chart detailed /></Card><div style={{ height: 14 }} /><Card><SectionTitle title="Break-Even & Runway Velocity" action={<span className="rv-pill amber">Closing Gap</span>} /><div className="rv-stat-grid"><div className="rv-stat"><span>Break-Even Target</span><b>$24,886/mo</b></div><div className="rv-stat"><span>Break-Even Users</span><b>508 Accounts</b></div><div className="rv-stat"><span>Revenue Gap</span><b style={{ color: 'hsl(var(--destructive))' }}>$6,386</b></div><div className="rv-stat"><span>Accounts Needed</span><b style={{ color: '#c38a15' }}>+130 Users</b></div></div></Card><div style={{ height: 14 }} /><Card><SectionTitle title="Model Levers & Assumptions" /><div className="rv-list"><Link href="/model" className="rv-list-row" style={{ textDecoration: 'none' }}><div><strong>Monthly Growth Rate</strong><small>Current active assumption</small></div><span className="rv-pill">7.0%</span><ChevronRight size={15} /></Link><Link href="/cash-flow" className="rv-list-row" style={{ textDecoration: 'none' }}><div><strong>Cash flow detail</strong><small>See monthly inflows and outflows</small></div><ChevronRight size={15} /></Link></div></Card></div></>;
+
+  const money = (value: number) =>
+    `$${Math.round(value).toLocaleString()}`;
+
+  const periods =
+    months === '6 Months'
+      ? 6
+      : months === '24 Months'
+        ? 24
+        : 12;
+
+  const forecastRevenue =
+    business.revenue * Math.pow(
+      1 + business.growth / 100,
+      periods
+    );
+
+  const breakEvenGap =
+    Math.max(0, business.expenses - business.revenue);
+
+  const breakEvenUsers =
+    business.customers > 0 && business.revenue > 0
+      ? Math.ceil(
+          business.expenses /
+          (business.revenue / business.customers)
+        )
+      : 0;
+
+  return <>
+    <Header title="Forecast Studio" />
+
+    <div className="rv-content">
+
+      <div
+        className="rv-tabs"
+        style={{
+          width: '100%',
+          justifyContent: 'space-between'
+        }}
+      >
+        {['6 Months', '12 Months', '24 Months'].map((item) => (
+          <button
+            key={item}
+            className={`rv-tab ${months === item ? 'active' : ''}`}
+            onClick={() => setMonths(item)}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ height: 10 }} />
+
+      <div className="rv-segment">
+        {[
+          'Rev vs Exp',
+          'Cash Reserve',
+          'Net Cash Flow',
+          'Customers'
+        ].map((item) => (
+          <button
+            key={item}
+            className={metric === item ? 'active' : ''}
+            onClick={() => setMetric(item)}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ height: 14 }} />
+
+      <Card>
+
+        <SectionTitle
+          title={metric}
+          description="Forecast based on current model parameters"
+          action={
+            <div style={{ textAlign: 'right' }}>
+              <span
+                style={{
+                  fontSize: 10,
+                  color: 'hsl(var(--muted-foreground))'
+                }}
+              >
+                Month {periods} Goal
+              </span>
+
+              <b
+                style={{
+                  display: 'block',
+                  color: 'hsl(var(--accent))'
+                }}
+              >
+                {money(forecastRevenue)}/mo
+              </b>
+            </div>
+          }
+        />
+
+        <Chart detailed={periods > 6} />
+
+      </Card>
+
+      <div style={{ height: 14 }} />
+
+      <Card>
+
+        <SectionTitle
+          title="Break-Even & Runway Velocity"
+          action={
+            <span className="rv-pill amber">
+              {breakEvenGap > 0 ? 'Closing Gap' : 'Break-Even'}
+            </span>
+          }
+        />
+
+        <div className="rv-stat-grid">
+
+          <div className="rv-stat">
+            <span>Break-Even Target</span>
+            <b>{money(business.expenses)}/mo</b>
+          </div>
+
+          <div className="rv-stat">
+            <span>Break-Even Users</span>
+            <b>{breakEvenUsers.toLocaleString()} Accounts</b>
+          </div>
+
+          <div className="rv-stat">
+            <span>Revenue Gap</span>
+            <b
+              style={{
+                color:
+                  breakEvenGap > 0
+                    ? 'hsl(var(--destructive))'
+                    : 'hsl(var(--accent))'
+              }}
+            >
+              {money(breakEvenGap)}
+            </b>
+          </div>
+
+          <div className="rv-stat">
+            <span>Accounts Needed</span>
+            <b>{Math.max(0, breakEvenUsers - business.customers)} Users</b>
+          </div>
+
+        </div>
+      </Card>
+
+      <div style={{ height: 14 }} />
+
+      <Card>
+
+        <SectionTitle title="Model Levers & Assumptions" />
+
+        <div className="rv-list">
+
+          <Link
+            href="/model"
+            className="rv-list-row"
+            style={{ textDecoration: 'none' }}
+          >
+            <div>
+              <strong>Monthly Growth Rate</strong>
+              <small>Current active assumption</small>
+            </div>
+
+            <span className="rv-pill">
+              {business.growth.toFixed(1)}%
+            </span>
+
+            <ChevronRight size={15} />
+          </Link>
+
+          <Link
+            href="/cash-flow"
+            className="rv-list-row"
+            style={{ textDecoration: 'none' }}
+          >
+            <div>
+              <strong>Cash flow detail</strong>
+              <small>See monthly inflows and outflows</small>
+            </div>
+
+            <ChevronRight size={15} />
+          </Link>
+
+        </div>
+
+      </Card>
+
+    </div>
+  </>;
 }
+
 
 function CashFlow() {
+  const { business } = useBusiness();
+
   const [period, setPeriod] = useState('Monthly');
-  return <><Header title="Cash Flow" back /><div className="rv-content"><div className="rv-page-head"><div className="rv-eyebrow">Forecast detail</div><h1>Follow the cash.</h1><p>Know what your operating rhythm makes possible.</p></div><div className="rv-tabs">{['Monthly', 'Quarterly'].map((x) => <button className={`rv-tab ${period === x ? 'active' : ''}`} onClick={() => setPeriod(x)} key={x}>{x}</button>)}</div><div style={{ height: 14 }} /><Card><SectionTitle title={`${period} net cash flow`} description="Next six periods" /><div style={{ display: 'flex', alignItems: 'end', height: 165, gap: 9, borderBottom: '1px solid hsl(var(--border))' }}>{[35, 50, 42, 66, 78, 92].map((height, i) => <div key={i} style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'end', flexDirection: 'column', justifyContent: 'end', gap: 6 }}><div style={{ width: '100%', height: `${height}%`, background: i < 2 ? 'hsl(var(--destructive) / .55)' : 'hsl(var(--accent) / .8)', borderRadius: '6px 6px 2px 2px' }} /><span style={{ fontSize: 9, color: 'hsl(var(--muted-foreground))' }}>M{i + 1}</span></div>)}</div></Card><div style={{ height: 14 }} /><div className="rv-grid rv-grid-2"><div className="rv-card rv-stat"><span>Opening cash</span><b>$135.0k</b><small>Current balance</small></div><div className="rv-card rv-stat"><span>Closing cash</span><b>$101.3k</b><small>After six periods</small></div><div className="rv-card rv-stat"><span>Cash in</span><b style={{ color: 'hsl(var(--accent))' }}>+$142.8k</b><small>Revenue collected</small></div><div className="rv-card rv-stat"><span>Cash out</span><b style={{ color: 'hsl(var(--destructive))' }}>-$176.5k</b><small>Operating spend</small></div></div><div style={{ height: 14 }} /><Card><SectionTitle title="Transaction summary" description="What is moving the balance" /><div className="rv-list">{[['Customer receipts', '+$18,500', TrendingUp], ['Team & contractors', '-$14,400', Users], ['Tools & infrastructure', '-$5,620', Zap], ['Tax reserve', '-$1,240', Landmark]].map(([label, value, Icon]) => <div className="rv-list-row" key={String(label)}><div style={{ display: 'flex', gap: 10, alignItems: 'center' }}><div className="rv-agent-icon green"><Icon size={15} /></div><strong>{String(label)}</strong></div><b style={{ color: String(value).startsWith('+') ? 'hsl(var(--accent))' : 'hsl(var(--destructive))' }}>{String(value)}</b></div>)}</div></Card></div></>;
+
+  const netFlow = business.revenue - business.expenses;
+
+  const periods =
+    period === 'Monthly' ? 6 : 4;
+
+  const money = (value: number) =>
+    `$${Math.round(value).toLocaleString()}`;
+
+  return <>
+    <Header title="Cash Flow" back />
+
+    <div className="rv-content">
+
+      <div className="rv-page-head">
+        <div className="rv-eyebrow">Forecast detail</div>
+        <h1>Follow the cash.</h1>
+        <p>Know what your operating rhythm makes possible.</p>
+      </div>
+
+      <div className="rv-tabs">
+
+        {['Monthly', 'Quarterly'].map((x) => (
+          <button
+            className={`rv-tab ${period === x ? 'active' : ''}`}
+            onClick={() => setPeriod(x)}
+            key={x}
+          >
+            {x}
+          </button>
+        ))}
+
+      </div>
+
+      <div style={{ height: 14 }} />
+
+      <Card>
+
+        <SectionTitle
+          title={`${period} net cash flow`}
+          description={`Next ${periods} periods`}
+        />
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'end',
+            height: 165,
+            gap: 9,
+            borderBottom: '1px solid hsl(var(--border))'
+          }}
+        >
+
+          {Array.from({ length: periods }).map((_, i) => {
+
+            const value =
+              netFlow *
+              (period === 'Monthly' ? 1 : 3);
+
+            const height =
+              Math.min(
+                92,
+                Math.max(
+                  12,
+                  Math.abs(value) /
+                    Math.max(
+                      1,
+                      Math.abs(netFlow)
+                    ) *
+                    70
+                )
+              );
+
+            return (
+              <div
+                key={i}
+                style={{
+                  flex: 1,
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'end',
+                  flexDirection: 'column',
+                  justifyContent: 'end',
+                  gap: 6
+                }}
+              >
+
+                <div
+                  style={{
+                    width: '100%',
+                    height: `${height}%`,
+                    background:
+                      value < 0
+                        ? 'hsl(var(--destructive) / .55)'
+                        : 'hsl(var(--accent) / .8)',
+                    borderRadius: '6px 6px 2px 2px'
+                  }}
+                />
+
+                <span
+                  style={{
+                    fontSize: 9,
+                    color: 'hsl(var(--muted-foreground))'
+                  }}
+                >
+                  {period === 'Monthly'
+                    ? `M${i + 1}`
+                    : `Q${i + 1}`}
+                </span>
+
+              </div>
+            );
+          })}
+
+        </div>
+
+      </Card>
+
+      <div style={{ height: 14 }} />
+
+      <div className="rv-grid rv-grid-2">
+
+        <div className="rv-card rv-stat">
+          <span>Opening cash</span>
+          <b>{money(business.cash)}</b>
+          <small>Current balance</small>
+        </div>
+
+        <div className="rv-card rv-stat">
+          <span>Closing cash</span>
+          <b>
+            {money(
+              business.cash +
+              netFlow * periods
+            )}
+          </b>
+          <small>After {periods} periods</small>
+        </div>
+
+        <div className="rv-card rv-stat">
+          <span>Cash in</span>
+          <b style={{ color: 'hsl(var(--accent))' }}>
+            +{money(business.revenue * periods)}
+          </b>
+          <small>Revenue collected</small>
+        </div>
+
+        <div className="rv-card rv-stat">
+          <span>Cash out</span>
+          <b style={{ color: 'hsl(var(--destructive))' }}>
+            -{money(business.expenses * periods)}
+          </b>
+          <small>Operating spend</small>
+        </div>
+
+      </div>
+
+      <div style={{ height: 14 }} />
+
+      <Card>
+
+        <SectionTitle
+          title="Transaction summary"
+          description="What is moving the balance"
+        />
+
+        <div className="rv-list">
+
+          {[
+            { label: 'Customer receipts', value: business.revenue, Icon: TrendingUp },
+            { label: 'Team & contractors', value: -business.expenses * 0.6, Icon: Users },
+            { label: 'Tools & infrastructure', value: -business.expenses * 0.4, Icon: Zap },
+            { label: 'Tax reserve', value: 0, Icon: Landmark },
+          ].map(({ label, value, Icon }) => (
+
+            <div className="rv-list-row" key={String(label)}>
+
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 10,
+                  alignItems: 'center'
+                }}
+              >
+                <div className="rv-agent-icon green">
+                  <Icon size={15} />
+                </div>
+
+                <strong>{String(label)}</strong>
+              </div>
+
+              <b
+                style={{
+                  color:
+                    Number(value) >= 0
+                      ? 'hsl(var(--accent))'
+                      : 'hsl(var(--destructive))'
+                }}
+              >
+                {Number(value) >= 0 ? '+' : '-'}
+                {money(Math.abs(Number(value)))}
+              </b>
+
+            </div>
+
+          ))}
+
+        </div>
+
+      </Card>
+
+    </div>
+  </>;
 }
 
+
 function Funding() {
-  const [raise, setRaise] = useState(250);
+  const [raise, setRaise] = useState(500);
   const [scenario, setScenario] = useState('Pre-Seed SAFE');
-  const valuation = 2200 + raise;
-  const dilution = Math.round((raise / valuation) * 1000) / 10;
-  return <><Header title="Funding Planner"><button className="rv-button ghost" onClick={() => notify('New scenario started')}><Plus size={14} /> Scenario</button></Header><div className="rv-content"><div className="rv-segment">{['Pre-Seed SAFE', 'Seed Lead', 'Bridge'].map((x) => <button className={scenario === x ? 'active' : ''} onClick={() => setScenario(x)} key={x}>{x}</button>)}</div><div style={{ height: 14 }} /><Card><SectionTitle title="Post-Round Cap Table" description="Ownership after this round" action={<span className="rv-pill">80.0% Founder</span>} /><div className="rv-capbar"><span /><span /><span /></div><div className="rv-cap-legend"><span><i />Founders: 80.0%</span><span><i className="green" />Investors: 10.0%</span><span><i className="amber" />Pool: 10%</span></div></Card><div style={{ height: 14 }} /><div className="rv-grid rv-grid-2"><div className="rv-card rv-stat"><span>Post-Money Valuation</span><b>${(valuation / 1000).toFixed(1)}M</b><small>↗ Pre: $2.2M</small></div><div className="rv-card rv-stat"><span>Target Capital Raise</span><b>${raise}k</b><small>Dilution: {dilution}%</small></div><div className="rv-card rv-stat"><span>Founder Retained</span><b>{(100 - dilution).toFixed(1)}%</b><small>↗ Value: $2.0M</small></div><div className="rv-card rv-stat"><span>New Runway Buffer</span><b>+10.4 Mo</b><small>↗ Burn basis: $24,120/mo</small></div></div><div style={{ height: 14 }} /><Card><SectionTitle title="Tune Round Terms" description={scenario} /><Slider label="Target Raise" value={raise} min={100} max={1500} step={50} display={`$${raise},000`} onChange={setRaise} /><Slider label="Pre-Money Valuation" value={2200} min={1000} max={10000} step={100} display={`$${(2200 / 1000).toFixed(1)}M`} onChange={() => undefined} /><Slider label="Option Pool (ESOP)" value={10} min={0} max={20} step={1} display="10%" onChange={() => undefined} /><button className="rv-button" style={{ width: '100%', marginTop: 12 }} onClick={() => notify(`${scenario} scenario saved`)}><Check size={14} /> Save Scenario</button></Card><div style={{ height: 14 }} /><Link href="/dilution" className="rv-card rv-list-row" style={{ padding: 16, textDecoration: 'none' }}><div><strong>Open dilution calculator</strong><small>Compare ownership at different valuations</small></div><ArrowRight size={16} color="hsl(var(--primary))" /></Link></div></>;
+
+  const [preMoney, setPreMoney] = useState(2000);
+
+  const postMoney = raise + preMoney;
+
+  const dilution =
+    postMoney > 0
+      ? (raise / postMoney) * 100
+      : 0;
+
+  const founderOwnership =
+    Math.max(0, 100 - dilution);
+
+  return <>
+    <Header title="Funding Planner">
+
+      <button
+        className="rv-button ghost"
+        onClick={() => notify('New scenario started')}
+      >
+        <Plus size={14} />
+        Scenario
+      </button>
+
+    </Header>
+
+    <div className="rv-content">
+
+      <div className="rv-segment">
+
+        {['Pre-Seed SAFE', 'Seed Lead', 'Bridge'].map((x) => (
+          <button
+            className={scenario === x ? 'active' : ''}
+            onClick={() => setScenario(x)}
+            key={x}
+          >
+            {x}
+          </button>
+        ))}
+
+      </div>
+
+      <div style={{ height: 14 }} />
+
+      <Card>
+
+        <SectionTitle
+          title="Post-Round Cap Table"
+          description="Ownership after this round"
+          action={
+            <span className="rv-pill">
+              {founderOwnership.toFixed(1)}% Founder
+            </span>
+          }
+        />
+
+        <div className="rv-capbar">
+          <span style={{ width: `${founderOwnership}%` }} />
+          <span style={{ width: `${dilution}%` }} />
+          <span style={{ width: '0%' }} />
+        </div>
+
+        <div className="rv-cap-legend">
+          <span><i />Founders: {founderOwnership.toFixed(1)}%</span>
+          <span><i className="green" />Investors: {dilution.toFixed(1)}%</span>
+          <span><i className="amber" />Pool: 0%</span>
+        </div>
+
+      </Card>
+
+      <div style={{ height: 14 }} />
+
+      <div className="rv-grid rv-grid-2">
+
+        <div className="rv-card rv-stat">
+          <span>Post-Money Valuation</span>
+          <b>${(postMoney / 1000).toFixed(2)}M</b>
+          <small>Pre-money: ${(preMoney / 1000).toFixed(2)}M</small>
+        </div>
+
+        <div className="rv-card rv-stat">
+          <span>Target Capital Raise</span>
+          <b>${raise}k</b>
+          <small>Dilution: {dilution.toFixed(1)}%</small>
+        </div>
+
+        <div className="rv-card rv-stat">
+          <span>Founder Retained</span>
+          <b>{founderOwnership.toFixed(1)}%</b>
+          <small>Post-round ownership</small>
+        </div>
+
+        <div className="rv-card rv-stat">
+          <span>New Runway Buffer</span>
+          <b>+{raise > 0 ? 'Capital' : '0.0 Mo'}</b>
+          <small>Based on target raise</small>
+        </div>
+
+      </div>
+
+      <div style={{ height: 14 }} />
+
+      <Card>
+
+        <SectionTitle
+          title="Tune Round Terms"
+          description={scenario}
+        />
+
+        <Slider
+          label="Target Raise"
+          value={raise}
+          min={100}
+          max={1500}
+          step={50}
+          display={`$${raise},000`}
+          onChange={setRaise}
+        />
+
+        <Slider
+          label="Pre-Money Valuation"
+          value={preMoney}
+          min={1000}
+          max={10000}
+          step={100}
+          display={`$${(preMoney / 1000).toFixed(1)}M`}
+          onChange={setPreMoney}
+        />
+
+        <button
+          className="rv-button"
+          style={{ width: '100%', marginTop: 12 }}
+          onClick={() =>
+            notify(`${scenario} scenario saved`)
+          }
+        >
+          <Check size={14} />
+          Save Scenario
+        </button>
+
+      </Card>
+
+      <div style={{ height: 14 }} />
+
+      <Link
+        href="/dilution"
+        className="rv-card rv-list-row"
+        style={{
+          padding: 16,
+          textDecoration: 'none'
+        }}
+      >
+        <div>
+          <strong>Open dilution calculator</strong>
+          <small>
+            Compare ownership at different valuations
+          </small>
+        </div>
+
+        <ArrowRight
+          size={16}
+          color="hsl(var(--primary))"
+        />
+      </Link>
+
+    </div>
+  </>;
 }
+
 
 function Dilution() {
   const [raise, setRaise] = useState(500);
-  const [pre, setPre] = useState(3500);
+  const [pre, setPre] = useState(2000);
   const [pool, setPool] = useState(10);
+
   const post = raise + pre;
-  const investor = Math.round(raise / post * 1000) / 10;
-  return <><Header title="New Scenario" back /><div className="rv-content"><div className="rv-page-head"><div className="rv-eyebrow">Funding calculator</div><h1>Model the round.</h1><p>Understand the trade before it becomes a term sheet.</p></div><label className="rv-label" htmlFor="scenario">Scenario title</label><input id="scenario" className="rv-input" defaultValue="Series Seed Tier" /><h2 style={{ fontSize: 17, margin: '22px 0 10px' }}>Round Economics</h2><Card><Slider label="Target Raise" value={raise} min={100} max={2000} step={50} display={`$${raise},000`} onChange={setRaise} /><Slider label="Pre-Money Valuation" value={pre} min={1000} max={15000} step={100} display={`$${(pre / 1000).toFixed(1)}M`} onChange={setPre} /><Slider label="Option Pool (ESOP)" value={pool} min={0} max={25} step={1} display={`${pool}%`} onChange={setPool} /></Card><div style={{ height: 14 }} /><Card><SectionTitle title="Ownership outcome" description="Post-money cap table" /><div className="rv-stat-grid"><div className="rv-stat"><span>Investor ownership</span><b>{investor}%</b></div><div className="rv-stat"><span>Founder ownership</span><b>{(100 - investor - pool).toFixed(1)}%</b></div><div className="rv-stat"><span>Post-money</span><b>${(post / 1000).toFixed(1)}M</b></div><div className="rv-stat"><span>Option pool</span><b>{pool}%</b></div></div></Card><button className="rv-button" style={{ width: '100%', marginTop: 18 }} onClick={() => notify('Scenario saved to Funding Planner')}><Check size={14} /> Save</button></div></>;
+
+  const investor =
+    post > 0
+      ? (raise / post) * 100
+      : 0;
+
+  const founder =
+    Math.max(
+      0,
+      100 - investor - pool
+    );
+
+  return <>
+    <Header title="New Scenario" back />
+
+    <div className="rv-content">
+
+      <div className="rv-page-head">
+        <div className="rv-eyebrow">
+          Funding calculator
+        </div>
+
+        <h1>Model the round.</h1>
+
+        <p>
+          Understand the trade before it becomes a term sheet.
+        </p>
+      </div>
+
+      <label
+        className="rv-label"
+        htmlFor="scenario"
+      >
+        Scenario title
+      </label>
+
+      <input
+        id="scenario"
+        className="rv-input"
+        defaultValue="New Funding Scenario"
+      />
+
+      <h2
+        style={{
+          fontSize: 17,
+          margin: '22px 0 10px'
+        }}
+      >
+        Round Economics
+      </h2>
+
+      <Card>
+
+        <Slider
+          label="Target Raise"
+          value={raise}
+          min={100}
+          max={2000}
+          step={50}
+          display={`$${raise},000`}
+          onChange={setRaise}
+        />
+
+        <Slider
+          label="Pre-Money Valuation"
+          value={pre}
+          min={1000}
+          max={15000}
+          step={100}
+          display={`$${(pre / 1000).toFixed(1)}M`}
+          onChange={setPre}
+        />
+
+        <Slider
+          label="Option Pool (ESOP)"
+          value={pool}
+          min={0}
+          max={25}
+          step={1}
+          display={`${pool}%`}
+          onChange={setPool}
+        />
+
+      </Card>
+
+      <div style={{ height: 14 }} />
+
+      <Card>
+
+        <SectionTitle
+          title="Ownership outcome"
+          description="Post-money cap table"
+        />
+
+        <div className="rv-stat-grid">
+
+          <div className="rv-stat">
+            <span>Investor ownership</span>
+            <b>{investor.toFixed(1)}%</b>
+          </div>
+
+          <div className="rv-stat">
+            <span>Founder ownership</span>
+            <b>{founder.toFixed(1)}%</b>
+          </div>
+
+          <div className="rv-stat">
+            <span>Post-money</span>
+            <b>${(post / 1000).toFixed(2)}M</b>
+          </div>
+
+          <div className="rv-stat">
+            <span>Option pool</span>
+            <b>{pool}%</b>
+          </div>
+
+        </div>
+
+      </Card>
+
+      <button
+        className="rv-button"
+        style={{
+          width: '100%',
+          marginTop: 18
+        }}
+        onClick={() =>
+          notify('Scenario saved to Funding Planner')
+        }
+      >
+        <Check size={14} />
+        Save
+      </button>
+
+    </div>
+  </>;
 }
 
+
 const agentData = [
-  { name: 'Finance', icon: WalletCards, tone: '', detail: 'Runway: 24.0 Months Remaining', result: '-$5620/mo net burn rate', href: '/agency/finance' },
-  { name: 'Strategy', icon: Target, tone: 'purple', detail: 'Default Alive Path Optimization', result: 'Compounding at +7.0%/mo', href: '/agency/strategy' },
+  { name: 'Finance', icon: WalletCards, tone: '', detail: 'Runway: 0 Months Remaining', result: '$0/mo net cash flow', href: '/agency/finance' },
+  { name: 'Strategy', icon: Target, tone: 'purple', detail: 'Default Alive Path Optimization', result: 'Waiting for business data', href: '/agency/strategy' },
   { name: 'Marketing', icon: Sparkles, tone: 'pink', detail: 'Acquisition Payback & Channel Economics', result: 'Estimated payback period: 3.1 mo', href: '#' },
-  { name: 'Sales', icon: TrendingUp, tone: 'green', detail: 'Deal Velocity & Average Contract Value', result: 'ACV target: $588 - $1,068', href: '#' },
-  { name: 'Product', icon: BriefcaseBusiness, tone: 'green', detail: 'Feature Stickiness & Churn Defenses', result: 'Target monthly retention: 94%', href: '#' },
-  { name: 'Operations', icon: SettingsIcon, tone: 'orange', detail: 'SaaS Infrastructure & Fixed Cost Leverage', result: 'Fixed overhead: $21900/mo', href: '#' },
+  { name: 'Sales', icon: TrendingUp, tone: 'green', detail: 'Deal Velocity & Average Contract Value', result: 'Waiting for sales data', href: '#' },
+  { name: 'Product', icon: BriefcaseBusiness, tone: 'green', detail: 'Feature Stickiness & Churn Defenses', result: 'Waiting for customer data', href: '#' },
+  { name: 'Operations', icon: SettingsIcon, tone: 'orange', detail: 'SaaS Infrastructure & Fixed Cost Leverage', result: 'Waiting for expense data', href: '#' },
 ];
 
 function Agency() {
@@ -218,7 +1428,7 @@ function AgentDetail({ type }: { type: 'finance' | 'strategy' }) {
   const title = finance ? 'Finance Brief' : 'Strategy Brief';
   const specialist = finance ? 'Finance Specialist' : 'Strategy Specialist';
   const assessment = finance ? 'SaaS Infrastructure & Fixed Cost Leverage' : 'Default Alive Path Optimization';
-  const body = finance ? 'Headcount of 3 accounts for $14,400/mo (60% of total expenses). Operational leverage will increase as revenue scales past fixed baselines.' : 'At 7.0% monthly revenue compounding, the company doubles ARR in ~10 months. Break-even threshold requires $24,886 total monthly turnover.';
+  const body = finance ? 'Add your business data to generate runway, burn and operating leverage analysis.' : 'Add your revenue and growth assumptions to generate strategic forecasts.';
   const decisions = finance ? ['Audit recurring subscriptions and eliminate unused SaaS tool seats ($300+/mo savings)', 'Document standard operating procedures for contractor onboarding', 'Consolidate cloud hosting and utilize annual reserved capacity discounts'] : ['Focus 80% of leadership bandwidth on single primary distribution channel', 'Position against legacy enterprise tools by emphasizing rapid 5-minute setup', 'Lock in 12-month customer commitments via discounted annual billing'];
   return <><Header title={title} back><button className="rv-button secondary" onClick={() => notify('Brief closed')}>Close</button></Header><div className="rv-content"><div className="rv-detail-hero"><div className={`rv-agent-icon ${finance ? 'orange' : 'purple'}`}>{finance ? <SettingsIcon size={18} /> : <Target size={18} />}</div><div><h2>{specialist}</h2><p>Sample analysis generated from your model</p></div></div><Card><div className="rv-eyebrow">Current assessment</div><h2 style={{ fontSize: 24, letterSpacing: '-.06em', margin: '10px 0 7px' }}>{assessment}</h2><p style={{ color: 'hsl(var(--muted-foreground))', fontSize: 14, lineHeight: 1.4, margin: 0 }}>{body}</p></Card><div style={{ height: 14 }} /><Card><h2 style={{ fontSize: 17, margin: 0 }}>Recommended Decisions</h2><div className="rv-numbered" style={{ marginTop: 15 }}>{decisions.map((decision, i) => <div className="rv-numbered-row" key={decision}><span className="rv-number">{i + 1}</span><span>{decision}</span></div>)}</div></Card><div className="rv-risk"><h3><Zap size={15} style={{ verticalAlign: 'middle', marginRight: 6 }} />Risk Factor</h3><p>{finance ? 'Ensure single-point-of-failure risks in infrastructure and key code modules are mitigated.' : 'Channel concentration risk: Ensure acquisition is not reliant on a single ad platform.'}</p></div></div></>;
 }
@@ -309,28 +1519,30 @@ function ProtectedRoutes() {
 }
 
 function AuthRouter() {
-  const [, setLocation] = useLocation();
-  return <ClerkProvider
-    publishableKey={clerkPubKey}
-    proxyUrl={clerkProxyUrl}
-    appearance={clerkAppearance}
-    signInUrl={`${basePath}/sign-in`}
-    signUpUrl={`${basePath}/sign-up`}
-    localization={{ signIn: { start: { title: 'Welcome back', subtitle: 'Your business command center is waiting.' } }, signUp: { start: { title: 'Create your Runvera workspace', subtitle: 'Turn your numbers into your next decision.' } } }}
-    routerPush={(to) => setLocation(stripBase(to))}
-    routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
-  >
-    <Switch>
-      <Route path="/" component={HomeRedirect} />
-      <Route path="/sign-in/*?" component={SignInPage} />
-      <Route path="/sign-up/*?" component={SignUpPage} />
-      <Route component={ProtectedRoutes} />
-    </Switch>
-  </ClerkProvider>;
+  return (
+    <WouterRouter base={basePath}>
+      <Shell>
+        <AppRoutes />
+      </Shell>
+    </WouterRouter>
+  );
 }
 
 function App() {
-  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={basePath}><ErrorBoundary><AuthRouter /></ErrorBoundary></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <BusinessProvider>
+          <WouterRouter base={basePath}>
+            <ErrorBoundary>
+              <AuthRouter />
+            </ErrorBoundary>
+          </WouterRouter>
+          <Toaster />
+        </BusinessProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
 }
 
 export default App;
