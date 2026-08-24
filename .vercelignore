@@ -1,32 +1,5 @@
-# Local/dev files
-node_modules
-.cache
-.local
-.replit
-.replitignore
-.vercel
-.netlify
-
-# Environment files
-.env
-.env.*
-!.env.example
-
-# Build output
-dist
-out-tsc
-tmp
-*.tsbuildinfo
-
-# IDE/system files
-.idea
-.vscode
-.DS_Store
-Thumbs.db
-
-# Backend generated output
-artifacts/api-server/dist
-
-# Backend source is bundled during Vercel build
-# Keep build.mjs and package.json available.
-artifacts/api-server/src
+artifacts/api-server
+lib/db
+lib/api-zod
+lib/api-spec
+api
