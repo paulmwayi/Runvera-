@@ -1,7 +1,5 @@
-import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ClerkProvider, Show, SignIn, SignUp, useAuth, useClerk } from '@clerk/react';
-import { shadcn } from '@clerk/themes';
+import { type ReactNode, useEffect, useState } from 'react';
+import { Show, SignIn, SignUp, useAuth, useClerk } from '@clerk/react';
 import { Link, Redirect, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { setAuthTokenGetter } from '@workspace/api-client-react';
 import {
@@ -9,20 +7,11 @@ import {
   FileText, Landmark, LayoutGrid, LineChart, Minus, Plus, Settings as SettingsIcon,
   SlidersHorizontal, Sparkles, Target, TrendingUp, Users, WalletCards, Zap,
 } from 'lucide-react';
-import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
-import { TooltipProvider } from '@/components/ui/tooltip';
 import { useBusiness } from '@/hooks/use-business';
 import type { BusinessState } from '@/hooks/use-business';
-
-const queryClient = new QueryClient();
-
-// Context that mimics Clerk's auth state for when Clerk is not configured.
-const DevAuthContext = createContext({ isSignedIn: false, signOut: () => {} });
-
-function DevAuthProvider({ children }: { children: ReactNode }) {
-  return <DevAuthContext.Provider value={{ isSignedIn: true, signOut: () => { window.location.href = '/'; } }}>{children}</DevAuthContext.Provider>;
-}
+import { clerkConfigured } from '@/lib/clerk-config';
+import { DevAuthContext } from '@/main';
 
 /**
  * Works like Clerk's Show but also supports the no-Clerk fallback.
@@ -54,12 +43,23 @@ function ApiAuthSetup() {
   return null;
 }
 
-/** Provides sign-out from Clerk or falls back to DevAuthContext. */
+import { useContext } from 'react';
+
+/**
+ * Provides sign-out from Clerk or falls back to DevAuthContext.
+ *
+ * NOTE: `clerkConfigured` is a module-level constant derived from the
+ * publishable key at import time — it never changes between renders.
+ * The conditional hook call is safe because the branch is stable.
+ * ESLint cannot verify this, but the invariant is enforced by the
+ * architecture: ClerkProvider only wraps the tree when configured.
+ */
 function useSignOut() {
   if (clerkConfigured) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return useClerk().signOut;
   }
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   return useContext(DevAuthContext).signOut;
 }
 
@@ -80,63 +80,13 @@ function ProtectedApp({ children }: { children: ReactNode }) {
   );
 }
 
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
-const clerkConfigured = Boolean(clerkPubKey);
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 function stripBase(path: string) {
   return basePath && path.startsWith(basePath) ? path.slice(basePath.length) || '/' : path;
 }
 
-const clerkAppearance = {
-  theme: shadcn,
-  cssLayerName: 'clerk',
-  options: {
-    logoPlacement: 'inside' as const,
-    logoLinkUrl: basePath || '/',
-    logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
-  },
-  variables: {
-    colorPrimary: '#5550D9',
-    colorForeground: '#151A2D',
-    colorMutedForeground: '#657083',
-    colorDanger: '#C7465B',
-    colorBackground: '#FFFFFF',
-    colorInput: '#F7F8FC',
-    colorInputForeground: '#151A2D',
-    colorNeutral: '#DDE2EF',
-    fontFamily: 'Manrope, sans-serif',
-    borderRadius: '1rem',
-  },
-  elements: {
-    rootBox: 'w-full flex justify-center',
-    cardBox: 'bg-white rounded-2xl w-[440px] max-w-full overflow-hidden shadow-xl',
-    card: '!shadow-none !border-0 !bg-transparent !rounded-none',
-    footer: '!shadow-none !border-0 !bg-transparent !rounded-none',
-    headerTitle: 'text-[#151A2D] font-bold',
-    headerSubtitle: 'text-[#657083]',
-    socialButtonsBlockButtonText: 'text-[#151A2D]',
-    formFieldLabel: 'text-[#151A2D] font-semibold',
-    footerActionLink: 'text-[#5550D9] font-semibold',
-    footerActionText: 'text-[#657083]',
-    dividerText: 'text-[#657083]',
-    identityPreviewEditButton: 'text-[#5550D9]',
-    formFieldSuccessText: 'text-[#168A67]',
-    alertText: 'text-[#C7465B]',
-    logoBox: 'mb-3',
-    logoImage: 'max-h-10',
-    socialButtonsBlockButton: 'border-[#DDE2EF] bg-white',
-    formButtonPrimary: 'bg-[#5550D9] hover:bg-[#4843C4] text-white',
-    formFieldInput: 'bg-[#F7F8FC] border-[#DDE2EF] text-[#151A2D]',
-    footerAction: 'bg-transparent',
-    dividerLine: 'bg-[#DDE2EF]',
-    alert: 'bg-[#FFF4F5] border-[#F2C9D0]',
-    otpCodeFieldInput: 'border-[#DDE2EF] text-[#151A2D]',
-    formFieldRow: 'mb-4',
-    main: 'gap-5',
-  },
-};
+
 
 function Logo() {
   return <Link href="/" className="rv-brand"><span className="rv-mark" /><span className="rv-brand-name">run<span>vera</span></span></Link>;
@@ -1523,29 +1473,11 @@ function AppRoutes() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={basePath}>
-          <ErrorBoundary>
-            {clerkConfigured ? (
-              <ClerkProvider
-                publishableKey={clerkPubKey}
-                proxyUrl={clerkProxyUrl}
-                appearance={clerkAppearance}
-              >
-                <ApiAuthSetup />
-                <AppRoutes />
-              </ClerkProvider>
-            ) : (
-              <DevAuthProvider>
-                <AppRoutes />
-              </DevAuthProvider>
-            )}
-          </ErrorBoundary>
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <WouterRouter base={basePath}>
+      {clerkConfigured && <ApiAuthSetup />}
+      <AppRoutes />
+      <Toaster />
+    </WouterRouter>
   );
 }
 
