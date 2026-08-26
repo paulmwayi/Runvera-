@@ -8,7 +8,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://runvera-api.vercel.app/api/:path*"
+      "destination": "https://runvera-api-server.vercel.app/api/:path*"
     },
     {
       "source": "/((?!api/).*)",
