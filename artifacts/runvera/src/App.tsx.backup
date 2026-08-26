@@ -1525,41 +1525,36 @@ function ProtectedRoutes() {
 
 function AuthRouter() {
   return (
-    <ClerkProvider 
-      publishableKey={clerkPubKey} 
-      proxyUrl={clerkProxyUrl}
-      appearance={clerkAppearance}
-    >
-      <Shell>
-        <ProtectedRoutes />
-      </Shell>
-    </ClerkProvider>
+    <WouterRouter base={basePath}>
+      <Switch>
+        <Route path="/sign-in"><SignInPage /></Route>
+        <Route path="/sign-up"><SignUpPage /></Route>
+        <Route path="/"><HomeRedirect /></Route>
+        <Route><ProtectedRoutes /></Route>
+      </Switch>
+    </WouterRouter>
   );
 }
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <BusinessProvider>
-          <WouterRouter base={basePath}>
+    <ClerkProvider
+      publishableKey={clerkPubKey}
+      proxyUrl={clerkProxyUrl || undefined}
+      appearance={clerkAppearance}
+    >
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <BusinessProvider>
             <ErrorBoundary>
-              <Switch>
-                <Route path="/">
-                  <AuthRouter />
-                </Route>
-                <Route path="/sign-in/*">
-                  <SignInPage />
-                </Route>
-                <Route path="/sign-up/*">
-                  <SignUpPage />
-                </Route>
-              </Switch>
+              <AuthRouter />
             </ErrorBoundary>
-          </WouterRouter>
-          <Toaster />
-        </BusinessProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+            <Toaster />
+          </BusinessProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ClerkProvider>
   );
 }
+
+export default App;
