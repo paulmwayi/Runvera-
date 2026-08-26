@@ -58,7 +58,13 @@ class ClerkBoundary extends React.Component<
   }
 
   componentDidCatch(error: unknown, info: React.ErrorInfo): void {
-    console.error('[ClerkBoundary] Clerk initialization failed:', error, info.componentStack);
+    console.error('[ClerkBoundary] Clerk initialization failed — falling back to DevAuth:', error, info.componentStack);
+    // Also show a visible console warning so the user knows what happened
+    console.warn(
+      '[ClerkBoundary] The Clerk publishable key is set but Clerk could not initialize. '
+      + 'Possible causes: invalid key, missing backend CLERK_SECRET_KEY, or network error. '
+      + 'The app is running in development mode (no auth required).'
+    );
   }
 
   render() {
