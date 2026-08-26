@@ -1,8 +1,9 @@
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ClerkProvider, Show, SignIn, SignUp, useClerk } from '@clerk/react';
+import { ClerkProvider, Show, SignIn, SignUp, useAuth, useClerk } from '@clerk/react';
 import { shadcn } from '@clerk/themes';
 import { Link, Redirect, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
+import { setAuthTokenGetter } from '@workspace/api-client-react';
 import {
   ArrowLeft, ArrowRight, BriefcaseBusiness, Check, ChevronRight, CircleDollarSign,
   FileText, Landmark, LayoutGrid, LineChart, Minus, Plus, Settings as SettingsIcon,
@@ -11,84 +12,23 @@ import {
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useBusiness } from '@/hooks/use-business';
+import type { BusinessState } from '@/hooks/use-business';
 
 const queryClient = new QueryClient();
 
-type BusinessState = {
-  revenue: number;
-  expenses: number;
-  cash: number;
-  growth: number;
-  customers: number;
-  assets: number;
-  liabilities: number;
-  seats: number;
-};
-
-const DEFAULT_BUSINESS: BusinessState = {
-  revenue: 0,
-  expenses: 0,
-  cash: 0,
-  growth: 0,
-  customers: 0,
-  assets: 0,
-  liabilities: 0,
-  seats: 0,
-};
-
-const BUSINESS_STORAGE_KEY = 'runvera-business-state';
-
-const BusinessContext = createContext<{
-  business: BusinessState;
-  updateBusiness: (updates: Partial<BusinessState>) => void;
-  resetBusiness: () => void;
-}>({
-  business: DEFAULT_BUSINESS,
-  updateBusiness: () => undefined,
-  resetBusiness: () => undefined,
-});
-
-function BusinessProvider({ children }: { children: ReactNode }) {
-  const [business, setBusiness] = useState<BusinessState>(() => {
-    try {
-      const saved = localStorage.getItem(BUSINESS_STORAGE_KEY);
-      if (!saved) return DEFAULT_BUSINESS;
-
-      const parsed = JSON.parse(saved) as Partial<BusinessState>;
-
-      return {
-        ...DEFAULT_BUSINESS,
-        ...parsed,
-      };
-    } catch {
-      return DEFAULT_BUSINESS;
-    }
-  });
-
+function ApiAuthSetup() {
+  const { getToken } = useAuth();
   useEffect(() => {
-    localStorage.setItem(BUSINESS_STORAGE_KEY, JSON.stringify(business));
-  }, [business]);
-
-  const updateBusiness = (updates: Partial<BusinessState>) => {
-    setBusiness((current) => ({
-      ...current,
-      ...updates,
-    }));
-  };
-
-  const resetBusiness = () => {
-    setBusiness(DEFAULT_BUSINESS);
-  };
-
-  return (
-    <BusinessContext.Provider value={{ business, updateBusiness, resetBusiness }}>
-      {children}
-    </BusinessContext.Provider>
-  );
-}
-
-function useBusiness() {
-  return useContext(BusinessContext);
+    setAuthTokenGetter(async () => {
+      try {
+        return await getToken();
+      } catch {
+        return null;
+      }
+    });
+  }, [getToken]);
+  return null;
 }
 
 
@@ -98,6 +38,15 @@ const notify = (message: string) =>
       detail: message,
     }),
   );
+
+function ProtectedApp({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <Show when="signed-in"><Shell>{children}</Shell></Show>
+      <Show when="signed-out"><Redirect to="/" /></Show>
+    </>
+  );
+}
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
@@ -1496,44 +1445,12 @@ function SignUpPage() {
   return <div className="rv-auth-page"><SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} /></div>;
 }
 
-function AppRoutes() {
-  return <Switch>
-    <Route path="/command"><Dashboard /></Route>
-    <Route path="/model"><Model /></Route>
-    <Route path="/forecasts"><Forecasts /></Route>
-    <Route path="/cash-flow"><CashFlow /></Route>
-    <Route path="/funding"><Funding /></Route>
-    <Route path="/dilution"><Dilution /></Route>
-    <Route path="/agency"><Agency /></Route>
-    <Route path="/agency/finance"><AgentDetail type="finance" /></Route>
-    <Route path="/agency/strategy"><AgentDetail type="strategy" /></Route>
-    <Route path="/reports"><Reports /></Route>
-    <Route path="/reports/financial"><FinancialReport /></Route>
-    <Route path="/projects"><Projects /></Route>
-    <Route path="/settings"><Settings /></Route>
-    <Route><Redirect to="/command" /></Route>
-  </Switch>;
-}
-
 function HomeRedirect() {
-  return <><Show when="signed-in"><Redirect to="/command" /></Show><Show when="signed-out"><PublicHome /></Show></>;
-}
-
-function ProtectedRoutes() {
-  return <><Show when="signed-in"><Shell><AppRoutes /></Shell></Show><Show when="signed-out"><Redirect to="/" /></Show></>;
-}
-
-function AuthRouter() {
   return (
-    <ClerkProvider 
-      publishableKey={clerkPubKey} 
-      proxyUrl={clerkProxyUrl}
-      appearance={clerkAppearance}
-    >
-      <Shell>
-        <ProtectedRoutes />
-      </Shell>
-    </ClerkProvider>
+    <>
+      <Show when="signed-in"><Redirect to="/command" /></Show>
+      <Show when="signed-out"><PublicHome /></Show>
+    </>
   );
 }
 
@@ -1541,25 +1458,40 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <BusinessProvider>
-          <WouterRouter base={basePath}>
-            <ErrorBoundary>
+        <WouterRouter base={basePath}>
+          <ErrorBoundary>
+            <ClerkProvider
+              publishableKey={clerkPubKey}
+              proxyUrl={clerkProxyUrl}
+              appearance={clerkAppearance}
+            >
+              <ApiAuthSetup />
               <Switch>
-                <Route path="/">
-                  <AuthRouter />
-                </Route>
-                <Route path="/sign-in/*">
-                  <SignInPage />
-                </Route>
-                <Route path="/sign-up/*">
-                  <SignUpPage />
-                </Route>
+                <Route path="/sign-in/*"><SignInPage /></Route>
+                <Route path="/sign-up/*"><SignUpPage /></Route>
+                <Route path="/"><HomeRedirect /></Route>
+                <Route path="/command"><ProtectedApp><Dashboard /></ProtectedApp></Route>
+                <Route path="/model"><ProtectedApp><Model /></ProtectedApp></Route>
+                <Route path="/forecasts"><ProtectedApp><Forecasts /></ProtectedApp></Route>
+                <Route path="/cash-flow"><ProtectedApp><CashFlow /></ProtectedApp></Route>
+                <Route path="/funding"><ProtectedApp><Funding /></ProtectedApp></Route>
+                <Route path="/dilution"><ProtectedApp><Dilution /></ProtectedApp></Route>
+                <Route path="/agency/finance"><ProtectedApp><AgentDetail type="finance" /></ProtectedApp></Route>
+                <Route path="/agency/strategy"><ProtectedApp><AgentDetail type="strategy" /></ProtectedApp></Route>
+                <Route path="/agency"><ProtectedApp><Agency /></ProtectedApp></Route>
+                <Route path="/reports/financial"><ProtectedApp><FinancialReport /></ProtectedApp></Route>
+                <Route path="/reports"><ProtectedApp><Reports /></ProtectedApp></Route>
+                <Route path="/projects"><ProtectedApp><Projects /></ProtectedApp></Route>
+                <Route path="/settings"><ProtectedApp><Settings /></ProtectedApp></Route>
+                <Route><Redirect to="/" /></Route>
               </Switch>
-            </ErrorBoundary>
-          </WouterRouter>
-          <Toaster />
-        </BusinessProvider>
+            </ClerkProvider>
+          </ErrorBoundary>
+        </WouterRouter>
+        <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
   );
 }
+
+export default App;

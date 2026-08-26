@@ -6,9 +6,9 @@ minimumReleaseAgeExclude:
 
 packages:
   - artifacts/api-server
+  - artifacts/mockup-sandbox
   - artifacts/runvera
   - lib/*
-  - lib/integrations/*
   - scripts
 
 catalog:
