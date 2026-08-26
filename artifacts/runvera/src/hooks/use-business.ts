@@ -129,9 +129,17 @@ export function useBusiness() {
   const queryClient = useQueryClient();
 
   // Fetch the existing business record from the backend.
+  // Errors (401, network, etc.) are silently handled — we fall back to defaults
+  // so the UI never crashes on missing backend data.
   const { data: backendBusiness, isLoading } = useQuery<BackendBusiness | null>({
     queryKey: ['business'],
-    queryFn: () => customFetch<BackendBusiness | null>('/api/business'),
+    queryFn: async () => {
+      try {
+        return await customFetch<BackendBusiness | null>('/api/business');
+      } catch {
+        return null;
+      }
+    },
     staleTime: 30_000,
   });
 

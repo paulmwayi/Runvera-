@@ -5,9 +5,15 @@ import { db, businessesTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
+const DEV_USER_ID = "dev_user_local";
+const isDev = process.env.NODE_ENV !== "production";
+
 function userId(req: Request): string | null {
   const auth = getAuth(req);
-  return auth?.userId ?? null;
+  if (auth?.userId) return auth.userId;
+  // In development, allow unauthenticated access with a default user
+  if (isDev) return DEV_USER_ID;
+  return null;
 }
 
 function isValidBusinessInput(body: any): boolean {

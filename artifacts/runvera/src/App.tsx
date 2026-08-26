@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ClerkProvider, Show, SignIn, SignUp, useAuth, useClerk } from '@clerk/react';
 import { shadcn } from '@clerk/themes';
@@ -17,7 +17,30 @@ import type { BusinessState } from '@/hooks/use-business';
 
 const queryClient = new QueryClient();
 
+// Context that mimics Clerk's auth state for when Clerk is not configured.
+const DevAuthContext = createContext({ isSignedIn: false, signOut: () => {} });
+
+function DevAuthProvider({ children }: { children: ReactNode }) {
+  return <DevAuthContext.Provider value={{ isSignedIn: true, signOut: () => { window.location.href = '/'; } }}>{children}</DevAuthContext.Provider>;
+}
+
+/**
+ * Works like Clerk's Show but also supports the no-Clerk fallback.
+ * When Clerk is configured, delegates to Clerk's <Show>.
+ * When Clerk is missing, always treats the user as signed-in so the
+ * dashboard is still accessible during development.
+ */
+function AuthGate({ when, children }: { when: 'signed-in' | 'signed-out'; children: ReactNode }) {
+  if (clerkConfigured) {
+    return <Show when={when}>{children}</Show>;
+  }
+  // No Clerk – always treat as signed-in
+  if (when === 'signed-in') return <>{children}</>;
+  return null;
+}
+
 function ApiAuthSetup() {
+  if (!clerkConfigured) return null;
   const { getToken } = useAuth();
   useEffect(() => {
     setAuthTokenGetter(async () => {
@@ -31,6 +54,15 @@ function ApiAuthSetup() {
   return null;
 }
 
+/** Provides sign-out from Clerk or falls back to DevAuthContext. */
+function useSignOut() {
+  if (clerkConfigured) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useClerk().signOut;
+  }
+  return useContext(DevAuthContext).signOut;
+}
+
 
 const notify = (message: string) =>
   window.dispatchEvent(
@@ -42,14 +74,15 @@ const notify = (message: string) =>
 function ProtectedApp({ children }: { children: ReactNode }) {
   return (
     <>
-      <Show when="signed-in"><Shell>{children}</Shell></Show>
-      <Show when="signed-out"><Redirect to="/" /></Show>
+      <AuthGate when="signed-in"><Shell>{children}</Shell></AuthGate>
+      <AuthGate when="signed-out"><Redirect to="/" /></AuthGate>
     </>
   );
 }
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const clerkConfigured = Boolean(clerkPubKey);
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 function stripBase(path: string) {
@@ -215,7 +248,7 @@ function Slider({
 function Dashboard() {
   const { business } = useBusiness();
 
-  const { revenue, expenses, cash, customers, growth, seats } = business;
+  const { revenue = 0, expenses = 0, cash = 0, customers = 0, growth = 0, seats = 0 } = business ?? {};
 
   const netFlow = revenue - expenses;
 
@@ -1416,8 +1449,16 @@ function Projects({ compact = false }: { compact?: boolean }) {
 function Settings() {
   const [updates, setUpdates] = useState(true);
   const [sync, setSync] = useState(true);
-  const { signOut } = useClerk();
-  return <><Header title="Settings" back /><div className="rv-content"><div className="rv-page-head"><div className="rv-eyebrow">Workspace</div><h1>Make it yours.</h1><p>Quiet controls for the way Runvera works with you.</p></div><Card><SectionTitle title="Workspace profile" /><label className="rv-label" htmlFor="workspace">Workspace name</label><input className="rv-input" id="workspace" defaultValue="Northstar Studio" /><div style={{ height: 12 }} /><label className="rv-label" htmlFor="owner">Your name</label><input className="rv-input" id="owner" defaultValue="Alex Morgan" /><button className="rv-button" style={{ width: '100%', marginTop: 14 }} onClick={() => notify('Workspace profile saved')}><Check size={14} /> Save changes</button></Card><div style={{ height: 14 }} /><Card><SectionTitle title="Preferences" /><div className="rv-setting"><div><strong>Decision alerts</strong><small>Get notified when a model signal changes</small></div><button className={`rv-switch ${updates ? 'on' : ''}`} onClick={() => setUpdates(!updates)} aria-label="Toggle decision alerts"><span /></button></div><div className="rv-setting"><div><strong>Live model sync</strong><small>Keep specialists aligned with your assumptions</small></div><button className={`rv-switch ${sync ? 'on' : ''}`} onClick={() => setSync(!sync)} aria-label="Toggle live model sync"><span /></button></div><div className="rv-setting"><div><strong>Default forecast</strong><small>12-month trajectory</small></div><ChevronRight size={16} color="hsl(var(--muted-foreground))" /></div></Card><div style={{ height: 14 }} /><Card><SectionTitle title="Account" /><div className="rv-setting"><div><strong>Alex Morgan</strong><small>Founder · Northstar Studio</small></div><span className="rv-pill green">Active</span></div><button className="rv-button secondary" style={{ width: '100%' }} onClick={() => signOut({ redirectUrl: basePath || '/' })}>Sign out</button></Card></div></>;
+  const [, setLocation] = useLocation();
+  const signOut = useSignOut();
+  const handleSignOut = () => {
+    if (clerkConfigured) {
+      signOut({ redirectUrl: basePath || '/' });
+    } else {
+      setLocation('/');
+    }
+  };
+  return <><Header title="Settings" back /><div className="rv-content"><div className="rv-page-head"><div className="rv-eyebrow">Workspace</div><h1>Make it yours.</h1><p>Quiet controls for the way Runvera works with you.</p></div><Card><SectionTitle title="Workspace profile" /><label className="rv-label" htmlFor="workspace">Workspace name</label><input className="rv-input" id="workspace" defaultValue="Northstar Studio" /><div style={{ height: 12 }} /><label className="rv-label" htmlFor="owner">Your name</label><input className="rv-input" id="owner" defaultValue="Alex Morgan" /><button className="rv-button" style={{ width: '100%', marginTop: 14 }} onClick={() => notify('Workspace profile saved')}><Check size={14} /> Save changes</button></Card><div style={{ height: 14 }} /><Card><SectionTitle title="Preferences" /><div className="rv-setting"><div><strong>Decision alerts</strong><small>Get notified when a model signal changes</small></div><button className={`rv-switch ${updates ? 'on' : ''}`} onClick={() => setUpdates(!updates)} aria-label="Toggle decision alerts"><span /></button></div><div className="rv-setting"><div><strong>Live model sync</strong><small>Keep specialists aligned with your assumptions</small></div><button className={`rv-switch ${sync ? 'on' : ''}`} onClick={() => setSync(!sync)} aria-label="Toggle live model sync"><span /></button></div><div className="rv-setting"><div><strong>Default forecast</strong><small>12-month trajectory</small></div><ChevronRight size={16} color="hsl(var(--muted-foreground))" /></div></Card><div style={{ height: 14 }} /><Card><SectionTitle title="Account" /><div className="rv-setting"><div><strong>Alex Morgan</strong><small>Founder · Northstar Studio</small></div><span className="rv-pill green">Active</span></div><button className="rv-button secondary" style={{ width: '100%' }} onClick={handleSignOut}>Sign out</button></Card></div></>;
 }
 
 function PublicHome() {
@@ -1438,19 +1479,45 @@ function PublicHome() {
 }
 
 function SignInPage() {
+  if (!clerkConfigured) return <div className="rv-auth-page"><div style={{textAlign:'center'}}><h2>Sign-in is not configured</h2><p style={{marginTop:8}}><Link href="/">← Back to home</Link></p></div></div>;
   return <div className="rv-auth-page"><SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} /></div>;
 }
 
 function SignUpPage() {
+  if (!clerkConfigured) return <div className="rv-auth-page"><div style={{textAlign:'center'}}><h2>Sign-up is not configured</h2><p style={{marginTop:8}}><Link href="/">← Back to home</Link></p></div></div>;
   return <div className="rv-auth-page"><SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} /></div>;
 }
 
 function HomeRedirect() {
   return (
     <>
-      <Show when="signed-in"><Redirect to="/command" /></Show>
-      <Show when="signed-out"><PublicHome /></Show>
+      <AuthGate when="signed-in"><Redirect to="/command" /></AuthGate>
+      <AuthGate when="signed-out"><PublicHome /></AuthGate>
     </>
+  );
+}
+
+function AppRoutes() {
+  return (
+    <Switch>
+      <Route path="/sign-in/*"><SignInPage /></Route>
+      <Route path="/sign-up/*"><SignUpPage /></Route>
+      <Route path="/"><HomeRedirect /></Route>
+      <Route path="/command"><ProtectedApp><Dashboard /></ProtectedApp></Route>
+      <Route path="/model"><ProtectedApp><Model /></ProtectedApp></Route>
+      <Route path="/forecasts"><ProtectedApp><Forecasts /></ProtectedApp></Route>
+      <Route path="/cash-flow"><ProtectedApp><CashFlow /></ProtectedApp></Route>
+      <Route path="/funding"><ProtectedApp><Funding /></ProtectedApp></Route>
+      <Route path="/dilution"><ProtectedApp><Dilution /></ProtectedApp></Route>
+      <Route path="/agency/finance"><ProtectedApp><AgentDetail type="finance" /></ProtectedApp></Route>
+      <Route path="/agency/strategy"><ProtectedApp><AgentDetail type="strategy" /></ProtectedApp></Route>
+      <Route path="/agency"><ProtectedApp><Agency /></ProtectedApp></Route>
+      <Route path="/reports/financial"><ProtectedApp><FinancialReport /></ProtectedApp></Route>
+      <Route path="/reports"><ProtectedApp><Reports /></ProtectedApp></Route>
+      <Route path="/projects"><ProtectedApp><Projects /></ProtectedApp></Route>
+      <Route path="/settings"><ProtectedApp><Settings /></ProtectedApp></Route>
+      <Route><Redirect to="/" /></Route>
+    </Switch>
   );
 }
 
@@ -1460,32 +1527,20 @@ function App() {
       <TooltipProvider>
         <WouterRouter base={basePath}>
           <ErrorBoundary>
-            <ClerkProvider
-              publishableKey={clerkPubKey}
-              proxyUrl={clerkProxyUrl}
-              appearance={clerkAppearance}
-            >
-              <ApiAuthSetup />
-              <Switch>
-                <Route path="/sign-in/*"><SignInPage /></Route>
-                <Route path="/sign-up/*"><SignUpPage /></Route>
-                <Route path="/"><HomeRedirect /></Route>
-                <Route path="/command"><ProtectedApp><Dashboard /></ProtectedApp></Route>
-                <Route path="/model"><ProtectedApp><Model /></ProtectedApp></Route>
-                <Route path="/forecasts"><ProtectedApp><Forecasts /></ProtectedApp></Route>
-                <Route path="/cash-flow"><ProtectedApp><CashFlow /></ProtectedApp></Route>
-                <Route path="/funding"><ProtectedApp><Funding /></ProtectedApp></Route>
-                <Route path="/dilution"><ProtectedApp><Dilution /></ProtectedApp></Route>
-                <Route path="/agency/finance"><ProtectedApp><AgentDetail type="finance" /></ProtectedApp></Route>
-                <Route path="/agency/strategy"><ProtectedApp><AgentDetail type="strategy" /></ProtectedApp></Route>
-                <Route path="/agency"><ProtectedApp><Agency /></ProtectedApp></Route>
-                <Route path="/reports/financial"><ProtectedApp><FinancialReport /></ProtectedApp></Route>
-                <Route path="/reports"><ProtectedApp><Reports /></ProtectedApp></Route>
-                <Route path="/projects"><ProtectedApp><Projects /></ProtectedApp></Route>
-                <Route path="/settings"><ProtectedApp><Settings /></ProtectedApp></Route>
-                <Route><Redirect to="/" /></Route>
-              </Switch>
-            </ClerkProvider>
+            {clerkConfigured ? (
+              <ClerkProvider
+                publishableKey={clerkPubKey}
+                proxyUrl={clerkProxyUrl}
+                appearance={clerkAppearance}
+              >
+                <ApiAuthSetup />
+                <AppRoutes />
+              </ClerkProvider>
+            ) : (
+              <DevAuthProvider>
+                <AppRoutes />
+              </DevAuthProvider>
+            )}
           </ErrorBoundary>
         </WouterRouter>
         <Toaster />
