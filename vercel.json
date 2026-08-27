@@ -2,14 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "installCommand": "pnpm install --no-frozen-lockfile",
-  "buildCommand": "rm -rf artifacts/api-server/dist && VERCEL_SERVERLESS=1 pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/runvera run build",
-  "outputDirectory": "artifacts/runvera/dist/public",
+  "buildCommand": "pnpm --filter @workspace/runvera run build",
+  "outputDirectory": "artifacts/runvera/dist",
   "framework": null,
-  "functions": {
-    "api/index.mjs": {
-      "includeFiles": "artifacts/api-server/dist/**"
-    }
-  },
   "rewrites": [
     {
       "source": "/((?!api/).*)",

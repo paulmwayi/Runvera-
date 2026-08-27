@@ -5,7 +5,6 @@ minimumReleaseAgeExclude:
   - stripe-replit-sync
 
 packages:
-  - artifacts/api-server
   - artifacts/mockup-sandbox
   - artifacts/runvera
   - lib/*
@@ -48,5 +47,4 @@ overrides:
   esbuild: '0.27.3'
 
 allowBuilds:
-  '@clerk/shared': true
   esbuild: true

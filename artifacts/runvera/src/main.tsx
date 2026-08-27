@@ -1,25 +1,32 @@
-import { createContext, type ReactNode, useContext } from 'react';
-import { createRoot } from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ClerkProvider } from '@clerk/react';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import { ErrorBoundary } from '@/components/error-boundary';
 import {
-  clerkConfigured,
-  clerkPubKey,
-  clerkProxyUrl,
-  clerkAppearance,
-} from '@/lib/clerk-config';
-import App from './App';
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import { createRoot } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { ErrorBoundary } from "@/components/error-boundary";
+import {
+  supabaseConfigured,
+  supabaseUrl,
+  supabaseAnonKey,
+} from "@/lib/supabase-config";
+import { supabase } from "@workspace/supabase/client";
+import type { User } from "@workspace/supabase";
+import App from "./App";
 
-import './index.css';
+import "./index.css";
 
 // ---------------------------------------------------------------------------
-// Dev auth (used when Clerk is not configured, or when Clerk init fails)
+// Dev auth (used when Supabase is not configured)
 // ---------------------------------------------------------------------------
 
 export const DevAuthContext = createContext({
   isSignedIn: false,
+  user: null as User | null,
   signOut: () => {},
 });
 
@@ -28,8 +35,9 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
     <DevAuthContext.Provider
       value={{
         isSignedIn: true,
+        user: null,
         signOut: () => {
-          window.location.href = '/';
+          window.location.href = "/";
         },
       }}
     >
@@ -39,80 +47,76 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
 }
 
 // ---------------------------------------------------------------------------
-// Clerk error boundary — catches Clerk JS initialization failures and falls
-// back to DevAuthProvider so the dashboard is always accessible.
+// Supabase auth provider — listens for session changes
 // ---------------------------------------------------------------------------
 
-interface ClerkBoundaryState {
-  hasError: boolean;
+interface SupabaseAuthState {
+  user: User | null;
+  loading: boolean;
 }
 
-class ClerkBoundary extends React.Component<
-  { children: ReactNode; fallback: ReactNode },
-  ClerkBoundaryState
-> {
-  state: ClerkBoundaryState = { hasError: false };
+function SupabaseAuthProvider({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<SupabaseAuthState>({
+    user: null,
+    loading: true,
+  });
 
-  static getDerivedStateFromError(): ClerkBoundaryState {
-    return { hasError: true };
-  }
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setState({ user: session?.user ?? null, loading: false });
+    });
 
-  componentDidCatch(error: unknown, info: React.ErrorInfo): void {
-    console.error('[ClerkBoundary] Clerk initialization failed — falling back to DevAuth:', error, info.componentStack);
-    // Also show a visible console warning so the user knows what happened
-    console.warn(
-      '[ClerkBoundary] The Clerk publishable key is set but Clerk could not initialize. '
-      + 'Possible causes: invalid key, missing backend CLERK_SECRET_KEY, or network error. '
-      + 'The app is running in development mode (no auth required).'
+    // Listen for auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setState({ user: session?.user ?? null, loading: false });
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (state.loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <span className="text-muted-foreground text-sm">Loading…</span>
+      </div>
     );
   }
 
-  render() {
-    if (this.state.hasError) {
-      return this.props.fallback;
-    }
-    return this.props.children;
-  }
+  return (
+    <DevAuthContext.Provider
+      value={{
+        isSignedIn: state.user !== null,
+        user: state.user,
+        signOut: () => supabase.auth.signOut(),
+      }}
+    >
+      {children}
+    </DevAuthContext.Provider>
+  );
 }
-
-// Need React import for the class component above
-import React from 'react';
 
 // ---------------------------------------------------------------------------
 // Providers
 // ---------------------------------------------------------------------------
 
 const queryClient = new QueryClient();
-const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-// Wrap the app with the appropriate auth provider
 function AuthProviders({ children }: { children: ReactNode }) {
-  if (!clerkConfigured) {
+  if (!supabaseConfigured) {
     return <DevAuthProvider>{children}</DevAuthProvider>;
   }
-
-  return (
-    <ClerkBoundary fallback={<DevAuthProvider>{children}</DevAuthProvider>}>
-      <ClerkProvider
-        publishableKey={clerkPubKey}
-        proxyUrl={clerkProxyUrl}
-        appearance={clerkAppearance}
-        signInUrl={`${basePath}/sign-in`}
-        signUpUrl={`${basePath}/sign-up`}
-        signInFallbackRedirectUrl={`${basePath}/command`}
-        signUpFallbackRedirectUrl={`${basePath}/command`}
-      >
-        {children}
-      </ClerkProvider>
-    </ClerkBoundary>
-  );
+  return <SupabaseAuthProvider>{children}</SupabaseAuthProvider>;
 }
 
 // ---------------------------------------------------------------------------
 // Mount
 // ---------------------------------------------------------------------------
 
-createRoot(document.getElementById('root')!, {
+createRoot(document.getElementById("root")!, {
   onCaughtError: (error, errorInfo) => {
     console.error(error, errorInfo.componentStack);
   },

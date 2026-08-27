@@ -38,21 +38,7 @@ export default defineConfig({
     fs: {
       strict: true,
     },
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-      '/clerk/npm': {
-        target: 'https://js.clerk.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/clerk/, ''),
-      },
-      '/clerk': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-    },
+
   },
 
   preview: {
