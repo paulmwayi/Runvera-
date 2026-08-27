@@ -62,6 +62,11 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
+    if (!supabase) {
+      setState({ user: null, loading: false });
+      return;
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setState({ user: session?.user ?? null, loading: false });
@@ -90,7 +95,7 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       value={{
         isSignedIn: state.user !== null,
         user: state.user,
-        signOut: () => supabase.auth.signOut(),
+        signOut: () => supabase?.auth.signOut(),
       }}
     >
       {children}

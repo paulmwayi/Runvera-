@@ -138,6 +138,7 @@ export function useBusiness() {
     queryFn: async () => {
       if (!user) return null;
       try {
+        if (!supabase) return null;
         const { data, error } = await supabase
           .from("businesses")
           .select("*")
@@ -154,14 +155,14 @@ export function useBusiness() {
         return null;
       }
     },
-    enabled: !!user,
+    enabled: !!user && !!supabase,
     staleTime: 30_000,
   });
 
   // Create (first save) or upsert business in Supabase.
   const upsertMutation = useMutation({
     mutationFn: async (state: BusinessState) => {
-      if (!user) throw new Error("Not authenticated");
+      if (!user || !supabase) throw new Error("Not authenticated");
       const row = frontendToBackend(state);
       const { data, error } = await supabase
         .from("businesses")
@@ -182,7 +183,7 @@ export function useBusiness() {
   // Partial update for subsequent saves.
   const updateMutation = useMutation({
     mutationFn: async (state: BusinessState) => {
-      if (!user) throw new Error("Not authenticated");
+      if (!user || !supabase) throw new Error("Not authenticated");
       const row = frontendToBackend(state);
       const { data, error } = await supabase
         .from("businesses")

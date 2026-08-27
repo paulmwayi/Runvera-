@@ -739,6 +739,7 @@ function SignInPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
+    if (!supabase) { setError("Supabase is not configured."); setLoading(false); return; }
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (authError) {
@@ -783,6 +784,7 @@ function SignUpPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
+    if (!supabase) { setError("Supabase is not configured."); setLoading(false); return; }
     const { error: authError } = await supabase.auth.signUp({ email, password });
     setLoading(false);
     if (authError) {
