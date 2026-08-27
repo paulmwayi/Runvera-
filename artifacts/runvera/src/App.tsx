@@ -725,6 +725,8 @@ function Settings() {
 function SignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -744,19 +746,46 @@ function SignInPage() {
 
   return (
     <div className="rv-auth-page">
-      <div style={{ maxWidth: 440, width: "100%" }}>
+      <div className="rv-auth-card">
         <Logo />
-        <h2 style={{ marginTop: 20, marginBottom: 4 }}>Welcome back</h2>
-        <p style={{ color: "hsl(var(--muted-foreground))", marginBottom: 20 }}>Sign in to your Runvera workspace</p>
-        {error && <div style={{ background: "hsl(var(--destructive) / .1)", border: "1px solid hsl(var(--destructive) / .3)", borderRadius: 8, padding: "10px 14px", marginBottom: 14, color: "hsl(var(--destructive))", fontSize: 13 }}>{error}</div>}
+        <h1 style={{ marginTop: 24 }}>Welcome back</h1>
+        <p className="rv-auth-card-sub">
+          Don't have an account?{' '}
+          <button onClick={() => { window.location.href = '/sign-up'; }}>Sign up</button>
+        </p>
+
+        {error && <div className="rv-auth-error">{error}</div>}
+
         <form onSubmit={handleSignIn}>
-          <label className="rv-label" htmlFor="si-email">Email</label>
-          <input id="si-email" className="rv-input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" style={{ marginBottom: 12 }} />
-          <label className="rv-label" htmlFor="si-password">Password</label>
-          <input id="si-password" className="rv-input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={{ marginBottom: 18 }} />
-          <button className="rv-button" type="submit" style={{ width: "100%" }} disabled={loading}>{loading ? "Signing in…" : "Sign in"}</button>
+          <div className="rv-auth-field">
+            <div className="rv-auth-field-label"><label htmlFor="si-email">Email Address</label></div>
+            <input id="si-email" className="rv-input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
+          </div>
+
+          <div className="rv-auth-field">
+            <div className="rv-auth-field-label">
+              <label htmlFor="si-password">Password</label>
+              <a href="#" onClick={(e) => e.preventDefault()}>Forgot password?</a>
+            </div>
+            <div className="rv-auth-pw-wrap">
+              <input id="si-password" className="rv-input" type={showPw ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
+              <button type="button" className="rv-auth-pw-toggle" onClick={() => setShowPw(!showPw)} tabIndex={-1} aria-label="Toggle password visibility">
+                {showPw ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="rv-auth-check">
+            <input type="checkbox" id="si-remember" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+            <label htmlFor="si-remember">Remember this device</label>
+          </div>
+
+          <button className="rv-auth-submit" type="submit" disabled={loading}>{loading ? 'Signing in…' : 'Sign In'}</button>
         </form>
-        <p style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Don't have an account? <button onClick={() => { window.location.href = '/sign-up'; }} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',fontWeight:600}}>Sign up</button></p>
       </div>
     </div>
   );
@@ -765,6 +794,7 @@ function SignInPage() {
 function SignUpPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -786,11 +816,14 @@ function SignUpPage() {
   if (success) {
     return (
       <div className="rv-auth-page">
-        <div style={{ textAlign: "center", maxWidth: 440 }}>
+        <div className="rv-auth-card rv-auth-success">
           <Logo />
-          <h2 style={{ marginTop: 20 }}>Check your email</h2>
-          <p style={{ color: "hsl(var(--muted-foreground))", marginTop: 8 }}>We sent a confirmation link to <b>{email}</b>.</p>
-          <button className="rv-button" onClick={() => { window.location.href = '/sign-in'; }} style={{ marginTop: 20 }}>Go to sign in</button>
+          <div style={{ marginTop: 16 }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="hsl(158 65% 48%)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+          </div>
+          <h2>Check your email</h2>
+          <p>We sent a confirmation link to<br /><b>{email}</b></p>
+          <button className="rv-auth-submit" onClick={() => { window.location.href = '/sign-in'; }}>Go to sign in</button>
         </div>
       </div>
     );
@@ -798,19 +831,38 @@ function SignUpPage() {
 
   return (
     <div className="rv-auth-page">
-      <div style={{ maxWidth: 440, width: "100%" }}>
+      <div className="rv-auth-card">
         <Logo />
-        <h2 style={{ marginTop: 20, marginBottom: 4 }}>Create your workspace</h2>
-        <p style={{ color: "hsl(var(--muted-foreground))", marginBottom: 20 }}>Start building your business intelligence</p>
-        {error && <div style={{ background: "hsl(var(--destructive) / .1)", border: "1px solid hsl(var(--destructive) / .3)", borderRadius: 8, padding: "10px 14px", marginBottom: 14, color: "hsl(var(--destructive))", fontSize: 13 }}>{error}</div>}
+        <h1 style={{ marginTop: 24 }}>Create your workspace</h1>
+        <p className="rv-auth-card-sub">
+          Already have an account?{' '}
+          <button onClick={() => { window.location.href = '/sign-in'; }}>Sign in</button>
+        </p>
+
+        {error && <div className="rv-auth-error">{error}</div>}
+
         <form onSubmit={handleSignUp}>
-          <label className="rv-label" htmlFor="su-email">Email</label>
-          <input id="su-email" className="rv-input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" style={{ marginBottom: 12 }} />
-          <label className="rv-label" htmlFor="su-password">Password</label>
-          <input id="su-password" className="rv-input" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" style={{ marginBottom: 18 }} />
-          <button className="rv-button" type="submit" style={{ width: "100%" }} disabled={loading}>{loading ? "Creating account…" : "Create account"}</button>
+          <div className="rv-auth-field">
+            <div className="rv-auth-field-label"><label htmlFor="su-email">Email Address</label></div>
+            <input id="su-email" className="rv-input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
+          </div>
+
+          <div className="rv-auth-field">
+            <div className="rv-auth-field-label"><label htmlFor="su-password">Password</label></div>
+            <div className="rv-auth-pw-wrap">
+              <input id="su-password" className="rv-input" type={showPw ? 'text' : 'password'} required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" autoComplete="new-password" />
+              <button type="button" className="rv-auth-pw-toggle" onClick={() => setShowPw(!showPw)} tabIndex={-1} aria-label="Toggle password visibility">
+                {showPw ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                )}
+              </button>
+            </div>
+          </div>
+
+          <button className="rv-auth-submit" type="submit" disabled={loading} style={{ marginTop: 8 }}>{loading ? 'Creating account…' : 'Create account'}</button>
         </form>
-        <p style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Already have an account? <button onClick={() => { window.location.href = '/sign-in'; }} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',fontWeight:600}}>Sign in</button></p>
       </div>
     </div>
   );
