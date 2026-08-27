@@ -732,7 +732,8 @@ function SignInPage() {
   const [, setLocation] = useLocation();
 
   if (!supabaseConfigured) {
-    return <div className="rv-auth-page"><div style={{ textAlign: "center" }}><h2>Sign-in is not configured</h2><p style={{ marginTop: 8 }}><a href="/">← Back to home</a></p></div></div>;
+    const [, go] = useLocation();
+    return <div className="rv-auth-page"><div style={{ textAlign: "center" }}><h2>Sign-in is not configured</h2><p style={{ marginTop: 8 }}><button onClick={() => go('/')} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',textDecoration:'underline'}}>← Back to home</button></p></div></div>;
   }
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -763,7 +764,7 @@ function SignInPage() {
           <input id="si-password" className="rv-input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={{ marginBottom: 18 }} />
           <button className="rv-button" type="submit" style={{ width: "100%" }} disabled={loading}>{loading ? "Signing in…" : "Sign in"}</button>
         </form>
-        <p style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Don't have an account? <a href="/sign-up" className="rv-link" style={{ fontWeight: 600 }}>Sign up</a></p>
+        <p style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Don't have an account? <button onClick={() => go('/sign-up')} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',fontWeight:600}}>Sign up</button></p>
       </div>
     </div>
   );
@@ -776,8 +777,8 @@ function SignUpPage() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  if (!supabaseConfigured) {
-    return <div className="rv-auth-page"><div style={{ textAlign: "center" }}><h2>Sign-up is not configured</h2>        <p style={{ marginTop: 8 }}><a href="/">← Back to home</a></p></div></div>;
+  if (!supabaseConfigured) {    const [, go] = useLocation();
+    return <div className="rv-auth-page"><div style={{ textAlign: "center" }}><h2>Sign-up is not configured</h2><p style={{ marginTop: 8 }}><button onClick={() => go('/')} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',textDecoration:'underline'}}>← Back to home</button></p></div></div>;
   }
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -801,7 +802,7 @@ function SignUpPage() {
           <Logo />
           <h2 style={{ marginTop: 20 }}>Check your email</h2>
           <p style={{ color: "hsl(var(--muted-foreground))", marginTop: 8 }}>We sent a confirmation link to <b>{email}</b>.</p>
-          <a href="/sign-in" className="rv-button" style={{ marginTop: 20, display: "inline-block", textDecoration: "none" }}>Go to sign in</a>
+          <button className="rv-button" onClick={() => go('/sign-in')} style={{ marginTop: 20 }}>Go to sign in</button>
         </div>
       </div>
     );
@@ -821,7 +822,7 @@ function SignUpPage() {
           <input id="su-password" className="rv-input" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" style={{ marginBottom: 18 }} />
           <button className="rv-button" type="submit" style={{ width: "100%" }} disabled={loading}>{loading ? "Creating account…" : "Create account"}</button>
         </form>
-        <p style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Already have an account? <a href="/sign-in" className="rv-link" style={{ fontWeight: 600 }}>Sign in</a></p>
+        <p style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Already have an account? <button onClick={() => go('/sign-in')} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',fontWeight:600}}>Sign in</button></p>
       </div>
     </div>
   );
@@ -832,6 +833,7 @@ function SignUpPage() {
 // ---------------------------------------------------------------------------
 
 function PublicHome() {
+  const [, setLocation] = useLocation();
   return (
     <main className="rv-auth-home">
       <div className="rv-auth-glow" />
@@ -841,8 +843,8 @@ function PublicHome() {
         <h1>Understand your business.<br /><em>Model the future.</em></h1>
         <p>Runvera turns complex business numbers into clear decisions, with a virtual team of finance, strategy, marketing, sales, product and operations specialists beside you.</p>
         <div className="rv-auth-home-actions">
-          <a href="/sign-up" className="rv-button">Create your workspace <ArrowRight size={15} /></a>
-          <a href="/sign-in" className="rv-button secondary">Sign in</a>
+          <button className="rv-button" onClick={() => setLocation('/sign-up')}>Create your workspace <ArrowRight size={15} /></button>
+          <button className="rv-button secondary" onClick={() => setLocation('/sign-in')}>Sign in</button>
         </div>
       </div>
       <div className="rv-auth-home-proof"><span><span className="rv-dot" /> Live business intelligence</span><span>Financial model · AI agency · funding plans</span></div>
