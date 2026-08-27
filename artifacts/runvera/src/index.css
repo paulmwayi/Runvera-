@@ -282,9 +282,5 @@ a { color: inherit; }
 .rv-auth-success p { color: hsl(var(--muted-foreground)); font-size: 14px; line-height: 1.5; margin: 0 0 20px; }
 .rv-auth-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; color: hsl(var(--muted-foreground)); font-size: 12px; }
 .rv-auth-divider::before, .rv-auth-divider::after { content: ''; flex: 1; height: 1px; background: hsl(var(--border)); }
-.rv-auth-oauth { display: flex; flex-direction: column; gap: 10px; }
-.rv-auth-oauth-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 11px; border: 1px solid hsl(var(--border)); border-radius: 12px; background: #fff; color: hsl(var(--foreground)); font-size: 14px; font-weight: 500; cursor: pointer; transition: background .15s, border-color .15s; }
-.rv-auth-oauth-btn:hover { background: hsl(var(--muted)); border-color: hsl(var(--muted-foreground) / .3); }
-.rv-auth-oauth-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
 @media (min-width: 720px) { .rv-auth-home { padding: 42px 8vw 34px; } }
 @media (max-width: 520px) { .rv-auth-home-proof { flex-direction: column; } .rv-auth-card { padding: 32px 24px; } }
