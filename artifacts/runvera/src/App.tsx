@@ -44,34 +44,33 @@ const notify = (message: string) =>
 // ---------------------------------------------------------------------------
 
 function ProtectedApp({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <AuthGate when="signed-in"><Shell>{children}</Shell></AuthGate>
-      <AuthGate when="signed-out"><Redirect to="/" /></AuthGate>
-    </>
-  );
+  const { isSignedIn } = useContext(DevAuthContext);
+  if (!isSignedIn) {
+    window.location.href = "/";
+    return null;
+  }
+  return <Shell>{children}</Shell>;
 }
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function Logo() {
   return (
-    <Link href="/" className="rv-brand">
+    <a href="/" className="rv-brand" style={{ textDecoration: 'none' }}>
       <span className="rv-mark" />
       <span className="rv-brand-name">
         run<span>vera</span>
       </span>
-    </Link>
+    </a>
   );
 }
 
 function Header({ title, back = false, children }: { title: string; back?: boolean; children?: ReactNode }) {
-  const [, setLocation] = useLocation();
   return (
     <header className="rv-topbar">
       <div>
         {back ? (
-          <button className="rv-back" onClick={() => setLocation("/")}>
+          <button className="rv-back" onClick={() => { window.location.href = "/"; }}>
             <ArrowLeft size={16} /> Back
           </button>
         ) : (
@@ -728,7 +727,6 @@ function SignInPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [, setLocation] = useLocation();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -740,7 +738,7 @@ function SignInPage() {
     if (authError) {
       setError(authError.message);
     } else {
-      setLocation("/command");
+      window.location.href = "/command";
     }
   };
 
@@ -758,7 +756,7 @@ function SignInPage() {
           <input id="si-password" className="rv-input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={{ marginBottom: 18 }} />
           <button className="rv-button" type="submit" style={{ width: "100%" }} disabled={loading}>{loading ? "Signing in…" : "Sign in"}</button>
         </form>
-        <p style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Don't have an account? <button onClick={() => setLocation('/sign-up')} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',fontWeight:600}}>Sign up</button></p>
+        <p style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Don't have an account? <button onClick={() => { window.location.href = '/sign-up'; }} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',fontWeight:600}}>Sign up</button></p>
       </div>
     </div>
   );
@@ -770,7 +768,6 @@ function SignUpPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [, setLocation] = useLocation();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -793,7 +790,7 @@ function SignUpPage() {
           <Logo />
           <h2 style={{ marginTop: 20 }}>Check your email</h2>
           <p style={{ color: "hsl(var(--muted-foreground))", marginTop: 8 }}>We sent a confirmation link to <b>{email}</b>.</p>
-          <button className="rv-button" onClick={() => setLocation('/sign-in')} style={{ marginTop: 20 }}>Go to sign in</button>
+          <button className="rv-button" onClick={() => { window.location.href = '/sign-in'; }} style={{ marginTop: 20 }}>Go to sign in</button>
         </div>
       </div>
     );
@@ -813,7 +810,7 @@ function SignUpPage() {
           <input id="su-password" className="rv-input" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" style={{ marginBottom: 18 }} />
           <button className="rv-button" type="submit" style={{ width: "100%" }} disabled={loading}>{loading ? "Creating account…" : "Create account"}</button>
         </form>
-        <p style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Already have an account? <button onClick={() => setLocation('/sign-in')} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',fontWeight:600}}>Sign in</button></p>
+        <p style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Already have an account? <button onClick={() => { window.location.href = '/sign-in'; }} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',fontWeight:600}}>Sign in</button></p>
       </div>
     </div>
   );
@@ -824,7 +821,6 @@ function SignUpPage() {
 // ---------------------------------------------------------------------------
 
 function PublicHome() {
-  const [, setLocation] = useLocation();
   return (
     <main className="rv-auth-home">
       <div className="rv-auth-glow" />
@@ -834,8 +830,8 @@ function PublicHome() {
         <h1>Understand your business.<br /><em>Model the future.</em></h1>
         <p>Runvera turns complex business numbers into clear decisions, with a virtual team of finance, strategy, marketing, sales, product and operations specialists beside you.</p>
         <div className="rv-auth-home-actions">
-          <button className="rv-button" onClick={() => setLocation('/sign-up')}>Create your workspace <ArrowRight size={15} /></button>
-          <button className="rv-button secondary" onClick={() => setLocation('/sign-in')}>Sign in</button>
+          <button className="rv-button" onClick={() => { window.location.href = '/sign-up'; }}>Create your workspace <ArrowRight size={15} /></button>
+          <button className="rv-button secondary" onClick={() => { window.location.href = '/sign-in'; }}>Sign in</button>
         </div>
       </div>
       <div className="rv-auth-home-proof"><span><span className="rv-dot" /> Live business intelligence</span><span>Financial model · AI agency · funding plans</span></div>
@@ -844,12 +840,12 @@ function PublicHome() {
 }
 
 function HomeRedirect() {
-  return (
-    <>
-      <AuthGate when="signed-in"><Redirect to="/command" /></AuthGate>
-      <AuthGate when="signed-out"><PublicHome /></AuthGate>
-    </>
-  );
+  const { isSignedIn } = useContext(DevAuthContext);
+  if (isSignedIn) {
+    window.location.href = "/command";
+    return null;
+  }
+  return <PublicHome />;
 }
 
 // ---------------------------------------------------------------------------
