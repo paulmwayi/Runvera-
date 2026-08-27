@@ -232,6 +232,7 @@ a { color: inherit; }
   right: -160px;
   top: -120px;
   background: hsl(239 61% 58% / .13);
+  pointer-events: none;
 }
 .rv-auth-home-copy {
   position: relative;

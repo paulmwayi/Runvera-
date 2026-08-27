@@ -50,67 +50,42 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
 // Supabase auth provider — listens for session changes
 // ---------------------------------------------------------------------------
 
-interface SupabaseAuthState {
-  user: User | null;
-  loading: boolean;
-}
-
 function SupabaseAuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<SupabaseAuthState>({
-    user: null,
-    loading: true,
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (!supabase) {
-      setState({ user: null, loading: false });
+      setReady(true);
       return;
     }
 
-    // Safety timeout — if getSession() hangs, show the app after 3 seconds
-    const timeout = window.setTimeout(() => {
-      setState((prev) => (prev.loading ? { user: null, loading: false } : prev));
-    }, 3000);
-
-    // Get initial session
+    // Get initial session — resolve fast so the UI renders immediately
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
-        window.clearTimeout(timeout);
-        setState({ user: session?.user ?? null, loading: false });
+        setUser(session?.user ?? null);
+        setReady(true);
       })
       .catch(() => {
-        window.clearTimeout(timeout);
-        setState({ user: null, loading: false });
+        setReady(true);
       });
 
     // Listen for auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      window.clearTimeout(timeout);
-      setState({ user: session?.user ?? null, loading: false });
+      setUser(session?.user ?? null);
     });
 
-    return () => {
-      window.clearTimeout(timeout);
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
-
-  if (state.loading) {
-    return (
-      <div style={{ display: 'flex', height: '100dvh', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ color: 'hsl(var(--muted-foreground))', fontSize: 14 }}>Loading…</span>
-      </div>
-    );
-  }
 
   return (
     <DevAuthContext.Provider
       value={{
-        isSignedIn: state.user !== null,
-        user: state.user,
+        isSignedIn: user !== null,
+        user,
         signOut: () => supabase?.auth.signOut(),
       }}
     >
