@@ -1,5 +1,5 @@
 import { type ReactNode, useContext, useEffect, useState } from "react";
-import { Link, Redirect, Route, Switch, useLocation, Router as WouterRouter } from "wouter";
+import { Redirect, Route, Switch, Router as WouterRouter } from "wouter";
 import {
   ArrowLeft, ArrowRight, BriefcaseBusiness, Check, ChevronRight, CircleDollarSign,
   FileText, Landmark, LayoutGrid, LineChart, Minus, Plus, Settings as SettingsIcon,
@@ -740,7 +740,7 @@ function SignInPage() {
     if (authError) {
       setError(authError.message);
     } else {
-      window.location.href = "/command";
+      window.location.replace("/command");
     }
   };
 
@@ -751,7 +751,7 @@ function SignInPage() {
         <h1 style={{ marginTop: 24 }}>Welcome back</h1>
         <p className="rv-auth-card-sub">
           Don't have an account?{' '}
-          <button onClick={() => { window.location.href = '/sign-up'; }}>Sign up</button>
+          <a href="/sign-up">Sign up</a>
         </p>
 
         {error && <div className="rv-auth-error">{error}</div>}
@@ -824,7 +824,7 @@ function SignUpPage() {
           </div>
           <h2>Check your email</h2>
           <p>We sent a confirmation link to<br /><b>{email}</b></p>
-          <button className="rv-auth-submit" onClick={() => { window.location.href = '/sign-in'; }}>Go to sign in</button>
+          <a className="rv-auth-submit" href="/sign-in" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>Go to sign in</a>
         </div>
       </div>
     );
@@ -837,7 +837,7 @@ function SignUpPage() {
         <h1 style={{ marginTop: 24 }}>Create your workspace</h1>
         <p className="rv-auth-card-sub">
           Already have an account?{' '}
-          <button onClick={() => { window.location.href = '/sign-in'; }}>Sign in</button>
+          <a href="/sign-in">Sign in</a>
         </p>
 
         {error && <div className="rv-auth-error">{error}</div>}
@@ -884,8 +884,8 @@ function PublicHome() {
         <h1>Understand your business.<br /><em>Model the future.</em></h1>
         <p>Runvera turns complex business numbers into clear decisions, with a virtual team of finance, strategy, marketing, sales, product and operations specialists beside you.</p>
         <div className="rv-auth-home-actions">
-          <button className="rv-button" onClick={() => { window.location.href = '/sign-up'; }}>Create your workspace <ArrowRight size={15} /></button>
-          <button className="rv-button secondary" onClick={() => { window.location.href = '/sign-in'; }}>Sign in</button>
+          <a href="/sign-up" className="rv-button">Create your workspace <ArrowRight size={15} /></a>
+          <a href="/sign-in" className="rv-button secondary">Sign in</a>
         </div>
       </div>
       <div className="rv-auth-home-proof"><span><span className="rv-dot" /> Live business intelligence</span><span>Financial model · AI agency · funding plans</span></div>
@@ -896,7 +896,7 @@ function PublicHome() {
 function HomeRedirect() {
   const { isSignedIn } = useContext(DevAuthContext);
   if (isSignedIn) {
-    window.location.href = "/command";
+    window.location.replace("/command");
     return null;
   }
   return <PublicHome />;
