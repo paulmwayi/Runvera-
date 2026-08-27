@@ -67,25 +67,41 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Safety timeout — if getSession() hangs, show the app after 3 seconds
+    const timeout = window.setTimeout(() => {
+      setState((prev) => (prev.loading ? { user: null, loading: false } : prev));
+    }, 3000);
+
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setState({ user: session?.user ?? null, loading: false });
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        window.clearTimeout(timeout);
+        setState({ user: session?.user ?? null, loading: false });
+      })
+      .catch(() => {
+        window.clearTimeout(timeout);
+        setState({ user: null, loading: false });
+      });
 
     // Listen for auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      window.clearTimeout(timeout);
       setState({ user: session?.user ?? null, loading: false });
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      window.clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   if (state.loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <span className="text-muted-foreground text-sm">Loading…</span>
+      <div style={{ display: 'flex', height: '100dvh', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ color: 'hsl(var(--muted-foreground))', fontSize: 14 }}>Loading…</span>
       </div>
     );
   }

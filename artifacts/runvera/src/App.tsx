@@ -8,7 +8,6 @@ import {
 import { Toaster } from "@/components/ui/toaster";
 import { useBusiness } from "@/hooks/use-business";
 import type { BusinessState } from "@/hooks/use-business";
-import { supabaseConfigured } from "@/lib/supabase-config";
 import { supabase } from "@workspace/supabase/client";
 import { DevAuthContext } from "@/main";
 
@@ -731,16 +730,11 @@ function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
 
-  if (!supabaseConfigured) {
-    const [, go] = useLocation();
-    return <div className="rv-auth-page"><div style={{ textAlign: "center" }}><h2>Sign-in is not configured</h2><p style={{ marginTop: 8 }}><button onClick={() => go('/')} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',textDecoration:'underline'}}>← Back to home</button></p></div></div>;
-  }
-
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    if (!supabase) { setError("Supabase is not configured."); setLoading(false); return; }
+    if (!supabase) { setError("Authentication is not configured. Please contact support."); setLoading(false); return; }
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (authError) {
@@ -764,7 +758,7 @@ function SignInPage() {
           <input id="si-password" className="rv-input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={{ marginBottom: 18 }} />
           <button className="rv-button" type="submit" style={{ width: "100%" }} disabled={loading}>{loading ? "Signing in…" : "Sign in"}</button>
         </form>
-        <p style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Don't have an account? <button onClick={() => go('/sign-up')} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',fontWeight:600}}>Sign up</button></p>
+        <p style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Don't have an account? <button onClick={() => setLocation('/sign-up')} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',fontWeight:600}}>Sign up</button></p>
       </div>
     </div>
   );
@@ -776,16 +770,13 @@ function SignUpPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  if (!supabaseConfigured) {    const [, go] = useLocation();
-    return <div className="rv-auth-page"><div style={{ textAlign: "center" }}><h2>Sign-up is not configured</h2><p style={{ marginTop: 8 }}><button onClick={() => go('/')} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',textDecoration:'underline'}}>← Back to home</button></p></div></div>;
-  }
+  const [, setLocation] = useLocation();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    if (!supabase) { setError("Supabase is not configured."); setLoading(false); return; }
+    if (!supabase) { setError("Authentication is not configured. Please contact support."); setLoading(false); return; }
     const { error: authError } = await supabase.auth.signUp({ email, password });
     setLoading(false);
     if (authError) {
@@ -802,7 +793,7 @@ function SignUpPage() {
           <Logo />
           <h2 style={{ marginTop: 20 }}>Check your email</h2>
           <p style={{ color: "hsl(var(--muted-foreground))", marginTop: 8 }}>We sent a confirmation link to <b>{email}</b>.</p>
-          <button className="rv-button" onClick={() => go('/sign-in')} style={{ marginTop: 20 }}>Go to sign in</button>
+          <button className="rv-button" onClick={() => setLocation('/sign-in')} style={{ marginTop: 20 }}>Go to sign in</button>
         </div>
       </div>
     );
@@ -822,7 +813,7 @@ function SignUpPage() {
           <input id="su-password" className="rv-input" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" style={{ marginBottom: 18 }} />
           <button className="rv-button" type="submit" style={{ width: "100%" }} disabled={loading}>{loading ? "Creating account…" : "Create account"}</button>
         </form>
-        <p style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Already have an account? <button onClick={() => go('/sign-in')} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',fontWeight:600}}>Sign in</button></p>
+        <p style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Already have an account? <button onClick={() => setLocation('/sign-in')} style={{background:'none',border:'none',color:'hsl(var(--primary))',cursor:'pointer',fontWeight:600}}>Sign in</button></p>
       </div>
     </div>
   );
