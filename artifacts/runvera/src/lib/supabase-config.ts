@@ -33,3 +33,16 @@ export const supabaseAnonKey = isValidKey(rawKey) ? rawKey.trim() : "";
  * external auth.
  */
 export const supabaseConfigured = supabaseUrl !== "" && supabaseAnonKey !== "";
+
+// Debug: log config status to help diagnose Vercel deployment issues
+if (typeof window !== "undefined") {
+  console.log("[supabase-config]", {
+    hasUrl: !!rawUrl,
+    urlLength: rawUrl?.length ?? 0,
+    urlValid: isValidUrl(rawUrl),
+    hasKey: !!rawKey,
+    keyLength: rawKey?.length ?? 0,
+    keyValid: isValidKey(rawKey),
+    configured: supabaseConfigured,
+  });
+}
